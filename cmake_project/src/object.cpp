@@ -13,14 +13,14 @@ void Object::normVertices(glm::vec3 scale)
 
     float weight = 1.0f / Trimax(scaleX, scaleY, scaleZ);
 
+    std::cout << weight << std::endl;
+    int f;
+    scanf("%d", &f);
+
     for (int i = 0; i < size; ++i)
     {
         _vertices[i] *= weight;
-        // _vertices[i] += trans[i % 3];
-        //std::cout << "v = " << _vertices[i] << std::endl;
-        //std::cout << "scale = " << scale[i%3] << std::endl;
         _vertices[i] *= scale[i % 3];
-        //std::cout << "v = " << _vertices[i] << std::endl;
     }
 }
 
@@ -115,7 +115,7 @@ void Object::init(std::string path, glm::vec3 albedo, glm::vec3 scale, bool text
         }
     }
     in.close();
-    normVertices(scale);
+    //normVertices(scale);
 
     _cx = _cy = _cz = 0.0f;
     int vertex_size = (int)_vertices.size();

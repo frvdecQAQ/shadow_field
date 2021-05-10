@@ -41,10 +41,10 @@ void Scene::prepare() {
 		vertice_num += (obj_list[i]->_vertices.size() / 3);
 		indices_num += (obj_list[i]->_indices.size() / 3);
 	}
-	for (int i = 0; i < obj_num; ++i) {
+	/*for (int i = 0; i < obj_num; ++i) {
 		glm::vec3 now_center = glm::vec3(obj_list[i]->_cx, obj_list[i]->_cy, obj_list[i]->_cz);
 		translate(obj_list[i], center[i]-now_center);
-	}
+	}*/
 }
 
 void Scene::prepareData(int cur_band, int target_vertex) {
