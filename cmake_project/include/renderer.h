@@ -20,7 +20,6 @@
 #include "shproduct.h"
 #include "fastmul.hpp"
 #include "shorder.hpp"
-#include "fftprecomputed.hpp"
 #include "multi_product.h"
 
 // Camera intrinsic parameters definetion.
@@ -47,18 +46,18 @@ public:
     void Init(int lightNumber);
     void Render(bool render_again = false);
 
-    FourierSeries<n> sh2fs(SH<n> sh) {
-        FourierSeries<n> fs;
-#include "sh2fs.cpp"
-        return fs;
+   SH<n> fs2sh(FourierSeries<5*n-4> fs)
+    {
+        SH<n> sh;
+        #include "Mul5fs2sh.cpp"
+        return sh;
     }
 
-    SH<n> fs2sh(FourierSeries<2 * n - 1> fs) {
-        SH<n> sh;
-#include "fs2sh.cpp"
-//#include <profileapi.h>
-//#include <WTypesbase.h>s
-        return sh;
+    FourierSeries<n> sh2fs(SH<n> sh)
+    {
+        FourierSeries<n> fs;
+        #include "sh2fs.cpp"
+        return fs;
     }
 
     void Setup(Scene* scene, Lighting* light);

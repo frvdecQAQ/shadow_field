@@ -4,12 +4,33 @@
 #pragma once
 
 #include <functional>
+#include <vector>
+#include <fstream>
+#include <string>
+#include <sstream>
+#include <algorithm>
+#include <iterator>
 #include <cmath>
+
 // #include "math/vecmath.hpp"
 // #include "math/matmath.hpp"
 // #include "image.hpp"
 
 // typedef std::function<float(vec3f)> sphfunc;
+/*template <typename Out>
+void split(const std::string &s, char delim, Out result) {
+    std::istringstream iss(s);
+    std::string item;
+    while (std::getline(iss, item, delim)) {
+        *result++ = item;
+    }
+}
+
+std::vector<std::string> split(const std::string &s, char delim) {
+    std::vector<std::string> elems;
+    split(s, delim, std::back_inserter(elems));
+    return elems;
+}*/
 
 const float PI = acos(-1);
 
@@ -56,6 +77,7 @@ class SH
 		return l*l+l+m;
 	}
 public:
+    static std::vector<TensorEntry> sparsegamma;
     static float Gamma[n*n][n*n][n*n];
     static TensorEntry SparseGamma[];
     static TensorEntry SquareSparseGamma[];
@@ -63,13 +85,45 @@ public:
     float a[n*n] = {0};
     static const SH unit();
 
+    template <typename Out>
+    static void split(const std::string &s, char delim, Out result) {
+        std::istringstream iss(s);
+        std::string item;
+        while (std::getline(iss, item, delim)) {
+            *result++ = item;
+        }
+    }
+
+    static std::vector<std::string> split(const std::string &s, char delim) {
+        std::vector<std::string> elems;
+        split(s, delim, std::back_inserter(elems));
+        return elems;
+    }
+        
+    static void init()
+    {
+	    std::string line;
+	    std::ifstream sparsefile("gamma/src/sparse" + std::to_string(n));
+	    TensorEntry entry;
+	    while(getline(sparsefile, line))
+	    {
+		    std::vector<std::string> tokens = split(line.substr(1, line.length() - 3), ',');
+            entry.a = std::stoi(tokens[0]);
+		    entry.b = std::stoi(tokens[1]);
+		    entry.c = std::stoi(tokens[2]);
+		    entry.val = std::stof(tokens[3]);
+		    sparsegamma.push_back(entry);
+	    }
+	    sparsefile.close();
+    }
+
 	float& at(int l, int m) {
 		return a[SHIndex(l,m)];
 	}
     float const& at(int l, int m) const {
         return a[SHIndex(l,m)];
     }
-	SH(){}
+    SH(){}
     SH(SymmSH<n>);
 	// projection using sampling
 	// SH(sphfunc, int nsample = 1000000);
@@ -86,6 +140,11 @@ public:
     matrix<n*n> prodMatrix() const;
     float magnitude() const;
 };
+
+
+template<int n>
+std::vector<TensorEntry> SH<n>::sparsegamma;
+
 
 
 template <int n>

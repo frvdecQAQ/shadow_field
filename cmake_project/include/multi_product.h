@@ -17,10 +17,10 @@
 
 
 const int traditional_blocksize = 256;
-constexpr int N = select_size_5(n);
+constexpr int N = gpu_select_size(n);
 const std::vector<int> gammalist = {22,33,44,55,66,77};
 
-void initGamma();
+void gpu_initGamma();
 void releaseGamma();
 
 void multi_product(float *A, float *B, float* C, float *D, float *E, float *F,

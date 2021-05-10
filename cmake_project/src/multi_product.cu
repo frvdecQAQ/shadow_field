@@ -30,7 +30,7 @@ __constant__ int deviceSparseGamma411Size;
 std::vector<TensorEntry> SparseGamma3;
 
 template <typename Out>
-void split(const std::string &s, char delim, Out result) {
+void gpu_split(const std::string &s, char delim, Out result) {
     std::istringstream iss(s);
     std::string item;
     while (std::getline(iss, item, delim)) {
@@ -38,9 +38,9 @@ void split(const std::string &s, char delim, Out result) {
     }
 }
 
-std::vector<std::string> split(const std::string &s, char delim) {
+std::vector<std::string> gpu_split(const std::string &s, char delim) {
     std::vector<std::string> elems;
-    split(s, delim, std::back_inserter(elems));
+    gpu_split(s, delim, std::back_inserter(elems));
     return elems;
 }
 /*
@@ -83,7 +83,7 @@ static std::vector<TensorEntry> readGamma(int n)
 }
 
 
-std::vector<TensorEntry> filterGamma(std::vector<TensorEntry> v, int a, int b, int c)
+std::vector<TensorEntry> gpu_filterGamma(std::vector<TensorEntry> v, int a, int b, int c)
 {
     std::vector<TensorEntry> res;
     for (auto e: v) {
@@ -93,7 +93,7 @@ std::vector<TensorEntry> filterGamma(std::vector<TensorEntry> v, int a, int b, i
     return res;
 }
 
-void initGamma()
+void gpu_initGamma()
 {
     std::vector<TensorEntry> v,v1;
     int size = 0;
@@ -112,14 +112,14 @@ void initGamma()
     size = v.size();
     //console.log("sparse 3n-2 size:", size);
     // gamma 1,1,2
-    v1 = filterGamma(v, n, n, 2*n-1);
+    v1 = gpu_filterGamma(v, n, n, 2*n-1);
     size = v1.size();
     cudaMalloc((void**)&p, size * sizeof(TensorEntry));
     cudaMemcpy(p, &v1[0], size * sizeof(TensorEntry), cudaMemcpyHostToDevice);
     cudaMemcpyToSymbol(deviceSparseGamma112, &p, sizeof(TensorEntry*));
     cudaMemcpyToSymbol(deviceSparseGamma112Size, &size, sizeof(int));
     // gamma 2,1,3
-    v1 = filterGamma(v, 2*n-1, n, 3*n-2);
+    v1 = gpu_filterGamma(v, 2*n-1, n, 3*n-2);
     size = v1.size();
     cudaMalloc((void**)&p, size * sizeof(TensorEntry));
     cudaMemcpy(p, &v1[0], size * sizeof(TensorEntry), cudaMemcpyHostToDevice);
@@ -131,14 +131,14 @@ void initGamma()
     //
     v = readGamma(4*n-3);
     // gamma 3,1,4
-    v1 = filterGamma(v, 3*n-2, n, 4*n-3);
+    v1 = gpu_filterGamma(v, 3*n-2, n, 4*n-3);
     size = v1.size();
     cudaMalloc((void**)&p, size * sizeof(TensorEntry));
     cudaMemcpy(p, &v1[0], size * sizeof(TensorEntry), cudaMemcpyHostToDevice);
     cudaMemcpyToSymbol(deviceSparseGamma314, &p, sizeof(TensorEntry*));
     cudaMemcpyToSymbol(deviceSparseGamma314Size, &size, sizeof(int));
     // gamma 4,1,1
-    v1 = filterGamma(v, 4*n-3, n, n);
+    v1 = gpu_filterGamma(v, 4*n-3, n, n);
     size = v1.size();
     cudaMalloc((void**)&p, size * sizeof(TensorEntry));
     cudaMemcpy(p, &v1[0], size * sizeof(TensorEntry), cudaMemcpyHostToDevice);

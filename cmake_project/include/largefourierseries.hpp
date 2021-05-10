@@ -1,7 +1,10 @@
 #pragma once
 
 #include <cstring>
-#include "fourierseries.hpp"
+#include <complex>
+#include <iosfwd>
+
+typedef std::complex<float> complex;
 
 template <int n>
 struct LargeFourierSeries

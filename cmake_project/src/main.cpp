@@ -21,12 +21,12 @@
 #include "brdf.h"
 #include "scene.h"
 #include "lighting.h"
-#include "renderer.h"
 #include "diffuseObject.h"
 #include "generalObject.h"
 #include "resource_manager.h"
-#include "fftprecomputed.hpp"
 #include "multi_product.h"
+#include "renderer.h"
+#include "shorder.hpp"
 //#define FULL_SCREEN
 
 // Window size.
@@ -113,9 +113,28 @@ void shaderLoading();
 void calculateFPS();
 
 
+SH<n> fs2sh(FourierSeries<5*n-4> fs)
+{
+        SH<n> sh;
+        #include "Mul5fs2sh.cpp"
+        return sh;
+}
+
+FourierSeries<n> sh2fs(SH<n> sh)
+{
+	FourierSeries<n> fs;
+	#include "sh2fs.cpp"
+	return fs;
+}
+
+
 int main(int argc, char** argv){
     // ./PRT.exe -s/-l -d/-g [band] [sample number] [sphereNumber] [shadowSampleNumber]
-    /*initGamma();
+    //GPU init
+    gpu_initGamma();
+    //CPU init
+    SH<n>::init();
+    cpu_initGamma();
     float *A, *B, *C, *D, *E, *F;
     float *IA;
     cufftComplex *pool0, *pool1, *pool2;
@@ -129,6 +148,9 @@ int main(int argc, char** argv){
     cudaMalloc(&D, sizeof(float)*n*n*num);
     cudaMalloc(&E, sizeof(float)*n*n*num);
     cudaMalloc(&F, sizeof(float)*n*n*num);
+    cufftHandle plan;
+    int sizes[2] = {N,N};
+	cufftPlanMany(&plan, 2, sizes, NULL, 1, N*N, NULL, 1, N*N, CUFFT_C2C, num);
     IA = new float[n*n*num];
     for(int i = 0; i < n*n*num; ++i){
         IA[i] = ((i&1)?-1.0f:1.0f);
@@ -138,7 +160,7 @@ int main(int argc, char** argv){
     cudaMemcpy(C, IA, num*n*n*sizeof(float), cudaMemcpyHostToDevice);
     cudaMemcpy(D, IA, num*n*n*sizeof(float), cudaMemcpyHostToDevice);
     cudaMemcpy(E, IA, num*n*n*sizeof(float), cudaMemcpyHostToDevice);
-    shprod_many(A, B, C, D, E, F, pool0, pool1, pool2, num);
+    shprod_many(A, B, C, D, E, F, pool0, pool1, pool2, num, plan);
     cudaMemcpy(IA, F, num*n*n*sizeof(float), cudaMemcpyDeviceToHost);
     std::cout << IA[0] << std::endl;
     multi_product(A, B, C, D, E, F, num, 0);
@@ -148,11 +170,39 @@ int main(int argc, char** argv){
     cudaMemcpy(IA, F, num*n*n*sizeof(float), cudaMemcpyDeviceToHost);
     std::cout << IA[0] << std::endl;
     delete[] IA;
+
+    SH<n> sh1, sh2, sh3, sh4, sh5;
+    for(int l = 0; l < n; ++l){
+        for(int m = -l; m <= l; ++m){
+            int index = l*(l+1)+m;
+            sh1.at(l, m) = ((index&1)?-1.0f:1.0f);
+            sh2.at(l, m) = ((index&1)?-1.0f:1.0f);
+            sh3.at(l, m) = ((index&1)?-1.0f:1.0f);
+            sh4.at(l, m) = ((index&1)?-1.0f:1.0f);
+            sh5.at(l, m) = ((index&1)?-1.0f:1.0f);
+        }
+    }
+
+    SH<n> sh6 = precise(sh1,sh2,sh3,sh4,sh5);
+
+    std::cout << sh6.at(0, 0) << std::endl;
+
+    SH<n> sh7 = fs2sh(fastmul(sh2fs(sh1),sh2fs(sh2),sh2fs(sh3),sh2fs(sh4),sh2fs(sh5)));
+
+    std::cout << sh7.at(0, 0) << std::endl;
+
+    SH<n> sh8 = sh1*sh2*sh3*sh4*sh5;
+
+    std::cout << sh8.at(0, 0) << std::endl;
+
     releaseGamma();
-    return 0;*/
+    return 0;
+
     dataProcessing(argc, argv);
     renderer.loadTriple(band);
-    initGamma();
+    gpu_initGamma();
+    SH<n>::init();
+    cpu_initGamma();
     // Init GLFW.
     glfwInit();
 #ifdef __APPLE__
