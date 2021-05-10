@@ -148,7 +148,7 @@ bool Scene::change(glm::vec3& c_pos, glm::vec3& c_dir) {
 	rotateMatrix[0][2] = -std::sin(M_PI / 180);
 	rotateMatrix[2][0] = std::sin(M_PI / 180);
 	rotateMatrix[2][2] = std::cos(M_PI / 180);
-	DiffuseObject* obj_now = dynamic_cast<DiffuseObject*>(obj_list[3]);
+	DiffuseObject* obj_now = dynamic_cast<DiffuseObject*>(obj_list[1]);
 	obj_now->transform(rotateMatrix);
 	return true;
 }

@@ -1,0 +1,9 @@
+2
+
+leaf.obj
+plane_simp.obj
+
+0 0 
+
+5 75 5
+70 70 70

@@ -72,8 +72,8 @@ int shadowSampleNumber = 48 * 48;
 bool renderBar = true;
 
 // Camera.
-float camera_dis = 1.1f;
-glm::vec3 camera_pos(0.789035f, 0.290739f, -0.143193f);
+float camera_dis = 4.3f;
+glm::vec3 camera_pos(-0.568030f, 0.545272f, -0.328069f);
 glm::vec3 last_camera_pos(0.0f, 0.0f, 1.0f);
 glm::vec3 camera_dir(0.0f, 0.0f, 0.0f);
 glm::vec3 camera_up(0.0f, 1.0f, 0.0f);

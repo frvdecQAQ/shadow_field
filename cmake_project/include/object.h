@@ -43,12 +43,12 @@ public:
         _rz(1.0f),
         _difforGeneral(false)
     {
-        light_triangle[0]._v0 = glm::vec3(0.1, 0.3, 0);
-        light_triangle[0]._v1 = glm::vec3(-0.1, 0.3, 0);
-        light_triangle[0]._v2 = glm::vec3(0, 0.3, 0.1);
-        light_triangle[1]._v0 = glm::vec3(0.1, 0.3, 0);
-        light_triangle[1]._v1 = glm::vec3(-0.1, 0.3, 0);
-        light_triangle[1]._v2 = glm::vec3(0, 0.3, 0.1);
+        light_triangle[0]._v0 = glm::vec3(1 * 0.4, 1.5, 0);
+        light_triangle[0]._v1 = glm::vec3(-1* 0.4, 1.5, 0);
+        light_triangle[0]._v2 = glm::vec3(0, 1.5, 1* 0.4);
+        light_triangle[1]._v0 = glm::vec3(1* 0.4, 1.5, 0);
+        light_triangle[1]._v1 = glm::vec3(-1* 0.4, 1.5, 0);
+        light_triangle[1]._v2 = glm::vec3(0, 1.5, -1* 0.4);
     }
 
     void init(std::string path, glm::vec3 albedo, bool texture = true);

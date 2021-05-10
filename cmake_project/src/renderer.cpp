@@ -122,22 +122,25 @@ void Renderer::Setup(Scene* scene, Lighting* light){
         int vertex_num = scene->obj_list[obj_id]->_vertices.size()/3;
         multi_product_num += vertex_num;
     }
-    if(multi_product_num%traditional_blocksize != 0){
-        multi_product_num = (multi_product_num/traditional_blocksize+1)*traditional_blocksize;
+    if(multi_product_num%batch_size != 0){
+        multi_product_num = (multi_product_num/batch_size+1)*batch_size;
     }
-    cudaMalloc(&gpu_data[0], sizeof(float)*multi_product_num*n*n);
-    cudaMalloc(&gpu_data[1], sizeof(float)*multi_product_num*n*n);
-    cudaMalloc(&gpu_data[2], sizeof(float)*multi_product_num*n*n);
-    cudaMalloc(&gpu_data[3], sizeof(float)*multi_product_num*n*n);
-    cudaMalloc(&gpu_data[4], sizeof(float)*multi_product_num*n*n);
-    cudaMalloc(&gpu_data[5], sizeof(float)*multi_product_num*n*n);
-    cudaMalloc((void**)&gpu_pool0, sizeof(cufftComplex)*N*N*multi_product_num);
-    cudaMalloc((void**)&gpu_pool1, sizeof(cufftComplex)*N*N*multi_product_num);
-    cudaMalloc((void**)&gpu_pool2, sizeof(cufftComplex)*N*N*multi_product_num);
-    for(int i = 0; i < 6; ++i)cpu_data[i] = new float[multi_product_num*n*n];
+    cudaMalloc(&gpu_data[0], sizeof(float)*batch_size*n*n);
+    cudaMalloc(&gpu_data[1], sizeof(float)*batch_size*n*n);
+    cudaMalloc(&gpu_data[2], sizeof(float)*batch_size*n*n);
+    cudaMalloc(&gpu_data[3], sizeof(float)*batch_size*n*n);
+    cudaMalloc(&gpu_data[4], sizeof(float)*batch_size*n*n);
+    cudaMalloc(&gpu_data[5], sizeof(float)*batch_size*n*n);
+    cudaMalloc((void**)&gpu_pool0, sizeof(cufftComplex)*N*N*batch_size);
+    cudaMalloc((void**)&gpu_pool1, sizeof(cufftComplex)*N*N*batch_size);
+    cudaMalloc((void**)&gpu_pool2, sizeof(cufftComplex)*N*N*batch_size);
+    for(int i = 0; i < 6; ++i){
+        cpu_data[i] = new float[multi_product_num*n*n];
+        for(int j = 0; j < multi_product_num*n*n; ++j)cpu_data[i][j] = 0.0f;
+    }
 
     int sizes[2] = {N,N};
-	cufftPlanMany(&plan, 2, sizes, NULL, 1, N*N, NULL, 1, N*N, CUFFT_C2C, multi_product_num);
+	cufftPlanMany(&plan, 2, sizes, NULL, 1, N*N, NULL, 1, N*N, CUFFT_C2C, batch_size);
 }
 
 void Renderer::SetupColorBuffer(int type, glm::vec3 viewDir, bool diffuse)
@@ -293,16 +296,26 @@ void Renderer::setupBuffer(int type, glm::vec3 viewDir)
     double end_time = glfwGetTime();
     std::cout << "time 0 = " << end_time-start_time << std::endl;
     start_time = end_time;
-    
-    for(int i = 0; i < 5; ++i)
+
+    int loop_max = multi_product_num/batch_size;
+    for(int i = 0; i < loop_max; ++i)
     {
-        cudaMemcpy(gpu_data[i], cpu_data[i], sizeof(float)*multi_product_num*band2, cudaMemcpyHostToDevice);
+        for(int j = 0; j < 5; ++j)
+        {
+            cudaMemcpy(gpu_data[j], cpu_data[j]+i*batch_size*band2, sizeof(float)*batch_size*band2, cudaMemcpyHostToDevice);
+        }
+        //multi_product(gpu_data[0], gpu_data[1], gpu_data[2], gpu_data[3], gpu_data[4], gpu_data[5],
+        //    multi_product_num, 1);
+        shprod_many(gpu_data[0], gpu_data[1], gpu_data[2], gpu_data[3], gpu_data[4], gpu_data[5], 
+                gpu_pool0, gpu_pool1, gpu_pool2, batch_size, plan);
+        cudaMemcpy(cpu_data[5]+i*batch_size*band2, gpu_data[5], sizeof(float)*batch_size*band2, cudaMemcpyDeviceToHost);
+        /*for(int j = 0; j < batch_size; ++j)
+        {
+            int offset = i*batch_size*band2+j*band2;
+            our_multi_product(cpu_data[0]+offset, cpu_data[1]+offset, cpu_data[2]+offset,
+                            cpu_data[3]+offset, cpu_data[4]+offset, cpu_data[5]+offset);
+        }*/
     }
-    //multi_product(gpu_data[0], gpu_data[1], gpu_data[2], gpu_data[3], gpu_data[4], gpu_data[5],
-    //    multi_product_num, 1);
-    shprod_many(gpu_data[0], gpu_data[1], gpu_data[2], gpu_data[3], gpu_data[4], gpu_data[5], 
-            gpu_pool0, gpu_pool1, gpu_pool2, multi_product_num, plan);
-    cudaMemcpy(cpu_data[5], gpu_data[5], sizeof(float)*multi_product_num*band2, cudaMemcpyDeviceToHost);
     
     /*for(int i = 0; i < multi_product_num; ++i){
         our_multi_product(cpu_data[0]+i*band2, cpu_data[1]+i*band2, cpu_data[2]+i*band2,
