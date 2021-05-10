@@ -113,23 +113,8 @@ void shaderLoading();
 void calculateFPS();
 
 
-SH<n> fs2sh(FourierSeries<5*n-4> fs)
-{
-        SH<n> sh;
-        #include "Mul5fs2sh.cpp"
-        return sh;
-}
-
-FourierSeries<n> sh2fs(SH<n> sh)
-{
-	FourierSeries<n> fs;
-	#include "sh2fs.cpp"
-	return fs;
-}
-
-
 int main(int argc, char** argv){
-    // ./PRT.exe -s/-l -d/-g [band] [sample number] [sphereNumber] [shadowSampleNumber]
+    /*
     //GPU init
     gpu_initGamma();
     //CPU init
@@ -196,7 +181,7 @@ int main(int argc, char** argv){
     std::cout << sh8.at(0, 0) << std::endl;
 
     releaseGamma();
-    return 0;
+    return 0;*/
 
     dataProcessing(argc, argv);
     renderer.loadTriple(band);

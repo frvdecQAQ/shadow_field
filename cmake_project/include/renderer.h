@@ -95,7 +95,7 @@ private:
     void objDraw();
     //void setupDiffuseBuffer(int type);
     void setupBuffer(int type, glm::vec3 viewDir);
-    void tripleProduct(glm::vec3* result, float* second, int band2);
+    void our_multi_product(float *a, float *b, float *c, float *d, float *e, float *f);
     void tripleProduct(float* result, float* second, int band2);
     float testCoef(float* coef, float theta, float phi);
     void testMap(float* coef, const std::string& path);

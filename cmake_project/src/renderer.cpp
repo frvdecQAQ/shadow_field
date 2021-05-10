@@ -137,40 +137,26 @@ void Renderer::SetupColorBuffer(int type, glm::vec3 viewDir, bool diffuse)
     setupBuffer(type, viewDir);
 }
 
-void Renderer::tripleProduct(glm::vec3* result, float* second, int band2) {
-    std::vector<glm::vec3>first;
-    first.clear();
-    for (int i = 0; i < band2; ++i) {
-        first.push_back(result[i]);
-        result[i] = glm::vec3(0, 0, 0);
-    }
-    int sz = dst.size();
-    for (int i = 0; i < sz; ++i) {
-        double tmp = second[src[i].second] * coef[i];
-
-        result[dst[i]].r += first[src[i].first].r * tmp;
-        result[dst[i]].g += first[src[i].first].g * tmp;
-        result[dst[i]].b += first[src[i].first].b * tmp;
-    }
-    /*SH<n> sh1, sh2, sh3, sh4, sh5, sh6, sh7;
-    for (int l = 0; l < band; ++l) {
-        for (int m = -l; m <= l; ++m) {
-            int index = l * (l + 1) + m;
-            sh1.at(l, m) = result[index].r;
-            sh2.at(l, m) = result[index].g;
-            sh3.at(l, m) = result[index].b;
-            sh4.at(l, m) = second[index];
+void Renderer::our_multi_product(float* a, float* b, float* c, float* d, float*e ,float *f) {
+    SH<n> sh1, sh2, sh3, sh4, sh5, sh6;
+    int index;
+    for(int l = 0; l < n; ++l){
+        for(int m = -l; m <= l; ++m){
+            index = l*(l+1)+m;
+            sh1.at(l, m) = a[index];
+            sh2.at(l, m) = b[index];
+            sh3.at(l, m) = c[index];
+            sh4.at(l, m) = d[index];
+            sh5.at(l, m) = e[index];
         }
     }
-    sh5 = fs2sh(fastmul(sh2fs(sh1), sh2fs(sh4)));
-    sh6 = fs2sh(fastmul(sh2fs(sh2), sh2fs(sh4)));
-    sh7 = fs2sh(fastmul(sh2fs(sh3), sh2fs(sh4)));
-    for (int l = 0; l < n; ++l) {
-        for (int m = -l; m <= l; ++m) {
-            int index = l * (l + 1) + m;
-            result[index] = glm::vec3(sh5.at(l, m), sh6.at(l, m), sh7.at(l, m));
+    sh6 = fs2sh(fastmul(sh2fs(sh1),sh2fs(sh2),sh2fs(sh3),sh2fs(sh4),sh2fs(sh5)));
+    for(int l = 0; l < n; ++l){
+        for(int m = -l; m <= l; ++m){
+            index = l*(l+1)+m;
+            f[index]= sh6.at(l, m);
         }
-    }*/
+    }
 }
 
 void Renderer::tripleProduct(float* result, float* second, int band2) {
@@ -278,7 +264,7 @@ void Renderer::setupBuffer(int type, glm::vec3 viewDir)
     double end_time = glfwGetTime();
     std::cout << "time 0 = " << end_time-start_time << std::endl;
     start_time = end_time;
-
+    /*
     for(int i = 0; i < 5; ++i)
     {
         cudaMemcpy(gpu_data[i], cpu_data[i], sizeof(float)*multi_product_num*band2, cudaMemcpyHostToDevice);
@@ -288,6 +274,11 @@ void Renderer::setupBuffer(int type, glm::vec3 viewDir)
     shprod_many(gpu_data[0], gpu_data[1], gpu_data[2], gpu_data[3], gpu_data[4], gpu_data[5], 
             gpu_pool0, gpu_pool1, gpu_pool2, multi_product_num, plan);
     cudaMemcpy(cpu_data[5], gpu_data[5], sizeof(float)*multi_product_num*band2, cudaMemcpyDeviceToHost);
+    */
+    for(int i = 0; i < multi_product_num; ++i){
+        our_multi_product(cpu_data[0]+i*band2, cpu_data[1]+i*band2, cpu_data[2]+i*band2,
+                          cpu_data[3]+i*band2, cpu_data[4]+i*band2, cpu_data[5]+i*band2);
+    }
 
     end_time = glfwGetTime();
     std::cout << "time 1 = " << end_time-start_time << std::endl;
