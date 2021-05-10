@@ -92,6 +92,8 @@ private:
     int multi_product_num;
     cufftHandle plan;
 
+    const int batch_size = 4096;
+
     void objDraw();
     //void setupDiffuseBuffer(int type);
     void setupBuffer(int type, glm::vec3 viewDir);

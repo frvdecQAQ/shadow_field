@@ -5,6 +5,7 @@
 #include <vector>
 #include <Eigen/Dense>
 #include <glm/glm.hpp>
+#include "sampler.h"
 
 class Lighting
 {
@@ -19,6 +20,7 @@ public:
     void init();
     void process(int sampleNumber);
     void write2Diskbin();
+    void querySRF(glm::vec3 p, glm::vec3* coef);
 
     int band() { return _band; }
 
@@ -28,6 +30,24 @@ public:
 
     std::vector<glm::vec3> _coeffs;
     Eigen::VectorXf _Vcoeffs[3];
+
+    std::vector<float> _vertices;
+    std::vector<float> _texcoords;
+    std::vector<float> _normals;
+    std::vector<float> _indices;
+
+    float _cx, _cy, _cz, _r;
+    float init_x, init_y, init_z;
+    glm::mat4 rotate_mat;
+    glm::mat4 rotate_mat_inv;
+
+    const int sphereNumber = 64;
+    const int shadowSampleNumber = 128 * 128;
+    const float rStep = 0.15f;
+    const float rStart = 0.2f;
+
+    glm::vec3* shadow_field = nullptr;
+    Sampler point_sample;
 
 private:
     std::string _path;
@@ -40,6 +60,7 @@ private:
     float* _data = nullptr;
 
     glm::vec3 probeColor(glm::vec3 dir);
+    unsigned index_from_str(const std::string& str);
 };
 
 #endif

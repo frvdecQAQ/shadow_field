@@ -318,6 +318,7 @@ void Renderer::setupBuffer(int type, glm::vec3 viewDir)
     start_time = end_time;
 
     base_index = 0;
+    glm::vec3 light_coef[band2];
     for (int obj_id = 0; obj_id < sz; ++obj_id) 
     {
         int vertex_number = _scene->obj_list[obj_id]->_vertices.size() / 3;
@@ -331,21 +332,34 @@ void Renderer::setupBuffer(int type, glm::vec3 viewDir)
 
             float cr, cg, cb;
             cr = cg = cb = 0.0f;
+
+            if(_lighting->light_type == 2)
+            {
+                glm::vec3 now_point = glm::vec3(obj_now->_vertices[offset], 
+                                                obj_now->_vertices[offset + 1],
+                                                obj_now->_vertices[offset + 2]);
+                _lighting->querySRF(now_point, light_coef);
+            }
             
             //compute shading
             for (int j = 0; j < band2; j++)
             {
                 float& multi_product_result = cpu_data[5][base_index+j];
-                cr += _lighting->_Vcoeffs[0](j) * multi_product_result;
-                cg += _lighting->_Vcoeffs[1](j) * multi_product_result;
-                cb += _lighting->_Vcoeffs[2](j) * multi_product_result;
-                //cr += obj_now->light_coef[i*band2*3+j]*multi_product_result;
-                //cg += obj_now->light_coef[i*band2*3+band2+j]*multi_product_result;
-                //cb += obj_now->light_coef[i*band2*3+band2*2+j]*multi_product_result;
-                //std::cout << cr << ' ' << cg << ' ' << cb << std::endl;
-                //int f;
-                //scanf("%d", &f);
-                //std::cout << multi_product_result << std::endl;
+                if(_lighting->light_type == 0 || _lighting->light_type == 1)
+                {
+                    /*cr += _lighting->_Vcoeffs[0](j) * multi_product_result;
+                    cg += _lighting->_Vcoeffs[1](j) * multi_product_result;
+                    cb += _lighting->_Vcoeffs[2](j) * multi_product_result;*/
+                    cr += obj_now->light_coef[i*band2*3+j]*multi_product_result;
+                    cg += obj_now->light_coef[i*band2*3+band2+j]*multi_product_result;
+                    cb += obj_now->light_coef[i*band2*3+band2*2+j]*multi_product_result;
+                }
+                else
+                {
+                    cr += light_coef[j].r * multi_product_result;
+                    cg += light_coef[j].g * multi_product_result;
+                    cb += light_coef[j].b * multi_product_result;
+                }
             }
 
             cr *= _scene->color[obj_id].r;
@@ -391,38 +405,24 @@ void Renderer::setupBuffer(int type, glm::vec3 viewDir)
 
     if(_lighting->light_type == 2)
     {
-        for(int i = 0; i < 2; ++i){
-            MeshVertex light_vertex = {
-                _scene->obj_list[0]->light_triangle[i]._v0[0],
-                _scene->obj_list[0]->light_triangle[i]._v0[1],
-                _scene->obj_list[0]->light_triangle[i]._v0[2],
-                1,
-                1,
-                1
-            };
-
-            _meshBuffer.push_back(light_vertex);
-
-            light_vertex = {
-                _scene->obj_list[0]->light_triangle[i]._v1[0],
-                _scene->obj_list[0]->light_triangle[i]._v1[1],
-                _scene->obj_list[0]->light_triangle[i]._v1[2],
-                1,
-                1,
-                1
-            };
-
-            _meshBuffer.push_back(light_vertex);
-
-            light_vertex = {
-                _scene->obj_list[0]->light_triangle[i]._v2[0],
-                _scene->obj_list[0]->light_triangle[i]._v2[1],
-                _scene->obj_list[0]->light_triangle[i]._v2[2],
-                1,
-                1,
-                1
-            };
-            _meshBuffer.push_back(light_vertex);
+        int face_num = _lighting->_indices.size()/3;
+        for(int k = 0; k < face_num; ++k)
+        {
+           int index[3] = {_lighting->_indices[k*3],
+                           _lighting->_indices[k*3+1],
+                           _lighting->_indices[k*3+2]};
+           for (int j = 0; j < 3; j++)
+           {
+               int Vindex = 3 * index[j];
+               MeshVertex vertex = {
+                   _lighting->_vertices[Vindex + 0],
+                   _lighting->_vertices[Vindex + 1],
+                   _lighting->_vertices[Vindex + 2],
+                   1,
+                   1,
+                   1};
+               _meshBuffer.push_back(vertex);
+           }
         }
     }
 

@@ -4,6 +4,10 @@
 #include <fstream>
 #include <io.h>
 #include <cmath>
+#include <sys/types.h>
+#include <dirent.h>
+#include <sys/stat.h>
+#include <unistd.h>
 
 // GLEW
 // #define GLEW_STATIC
@@ -55,11 +59,11 @@ glm::vec3 albedo(0.12f, 0.12f, 0.12f);
 Scene scene;
 DiffuseObject diffObject;
 GeneralObject genObject;
-Lighting now_light;
+Lighting *now_light;
 BRDF brdf;
 Renderer renderer;
 
-int sampleNumber = 64 * 64;
+int sampleNumber = 128 * 128;
 int band = 5;
 int sphereNumber = 32;
 int shadowSampleNumber = 48 * 48;
@@ -352,15 +356,17 @@ void dataLoading(int argc, char** argv)
     band = n;
     std::string path(argv[4]);
 
-    now_light = Lighting(path+"/light_config.txt", band);
-    now_light.init();
+    assert(access((path+"/data").c_str(), 0) != -1);
+
+    now_light = new Lighting(path+"/light_config.txt", band);
+    now_light->init();
 
     int tmp_cnt = 0;
     for (int i = 0; i < scene.obj_num; ++i) {
         std::string obj_name = path + "/" + scene.name_list[i];
         size_t beginIndex = obj_name.rfind('/');
         size_t endIndex = obj_name.rfind('.');
-        std::string save_path = path + "/" + obj_name.substr(beginIndex + 1, endIndex - beginIndex - 1) + "U.dat";
+        std::string save_path = path + "/data/" + obj_name.substr(beginIndex + 1, endIndex - beginIndex - 1) + "U.dat";
         Object* tmp;
         if (scene.type_list[i] == 0)tmp = new DiffuseObject();
         else tmp = new GeneralObject();
@@ -371,7 +377,7 @@ void dataLoading(int argc, char** argv)
     }scene._band = band;
     scene.prepare();
 
-    renderer.Setup(&scene, &now_light);
+    renderer.Setup(&scene, now_light);
     renderer.SetupColorBuffer(0, camera_dis * camera_pos, false);
 
     std::cout << "Loading Done" << std::endl;
@@ -445,6 +451,9 @@ void dataProcessing(int argc, char** argv)
     std::string path(argv[4]);
     scene.init(path);
 
+
+    if(access((path+"/data").c_str(), 0) == -1)mkdir((path+"/data").c_str(), 0777);
+
     Lighting pattern(path+"/light_config.txt", band);
     bool exist_flag = check_light_process(pattern.save_path, band);
     if (!exist_flag)
@@ -464,7 +473,7 @@ void dataProcessing(int argc, char** argv)
         std::cout << obj_path << std::endl;
         size_t beginIndex = obj_path.rfind('/');
         size_t endIndex = obj_path.rfind('.');
-        std::string save_path = path + '/' + obj_path.substr(beginIndex + 1, endIndex - beginIndex - 1) + "U.dat";
+        std::string save_path = path + "/data/" + obj_path.substr(beginIndex + 1, endIndex - beginIndex - 1) + "U.dat";
         bool exist_flag = check_obj_process(save_path, scene.type_list[tmp_cnt],
             band, sampleNumber, sphereNumber, shadowSampleNumber);
         if (!exist_flag)
