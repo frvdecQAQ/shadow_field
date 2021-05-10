@@ -317,9 +317,9 @@ void Renderer::setupBuffer(int type, glm::vec3 viewDir)
                 cb += _lighting->_Vcoeffs[2](j) * multi_product_result;
             }
 
-            cr *= _lighting->hdrEffect().r;
-            cg *= _lighting->hdrEffect().g;
-            cb *= _lighting->hdrEffect().b;
+            cr *= _scene->color[obj_id].r;
+            cg *= _scene->color[obj_id].g;
+            cb *= _scene->color[obj_id].b;
 
             _colorBuffer[offset] = cr;
             _colorBuffer[offset + 1] = cg;

@@ -27,6 +27,10 @@ void Scene::init(std::string& path) {
 		center.push_back(glm::vec3(x, y, z));
 		std::cout << x << ' ' << y << ' ' << z << std::endl;
 	}
+	for(int i = 0; i < obj_num; ++i){
+		fscanf(config_file, "%f%f%f", &x, &y, &z);
+		color.push_back(glm::vec3(x, y, z));
+	}
 	delete[] obj_name;
 	fclose(config_file);
 }
