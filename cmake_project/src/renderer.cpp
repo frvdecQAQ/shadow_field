@@ -117,6 +117,9 @@ void Renderer::Setup(Scene* scene, Lighting* light){
         int vertex_num = scene->obj_list[obj_id]->_vertices.size()/3;
         multi_product_num += vertex_num;
     }
+    if(multi_product_num%traditional_blocksize != 0){
+        multi_product_num = (multi_product_num/traditional_blocksize+1)*traditional_blocksize;
+    }
     cudaMalloc(&gpu_data[0], sizeof(float)*multi_product_num*n*n);
     cudaMalloc(&gpu_data[1], sizeof(float)*multi_product_num*n*n);
     cudaMalloc(&gpu_data[2], sizeof(float)*multi_product_num*n*n);
@@ -273,6 +276,11 @@ void Renderer::setupBuffer(int type, glm::vec3 viewDir)
                     _scene->obj_list[query_id]->queryOOF(now_point, cpu_data[query_id]+base_index);
                 }
             }
+            for(int query_id = sz; query_id < 5; ++query_id)
+            {
+                cpu_data[query_id][base_index] = 2.0f*sqrt(M_PI);
+                for(int j = 1; j < band2; ++j)cpu_data[query_id][base_index+j] = 0.0f;
+            }
             base_index += band2;
         }
     }
@@ -326,6 +334,13 @@ void Renderer::setupBuffer(int type, glm::vec3 viewDir)
                 cr += _lighting->_Vcoeffs[0](j) * multi_product_result;
                 cg += _lighting->_Vcoeffs[1](j) * multi_product_result;
                 cb += _lighting->_Vcoeffs[2](j) * multi_product_result;
+                //cr += obj_now->light_coef[i*band2*3+j]*multi_product_result;
+                //cg += obj_now->light_coef[i*band2*3+band2+j]*multi_product_result;
+                //cb += obj_now->light_coef[i*band2*3+band2*2+j]*multi_product_result;
+                //std::cout << cr << ' ' << cg << ' ' << cb << std::endl;
+                //int f;
+                //scanf("%d", &f);
+                //std::cout << multi_product_result << std::endl;
             }
 
             cr *= _scene->color[obj_id].r;
@@ -368,6 +383,40 @@ void Renderer::setupBuffer(int type, glm::vec3 viewDir)
     end_time = glfwGetTime();
     std::cout << "time 2 = " << end_time-start_time << std::endl;
     start_time = end_time;
+
+    for(int i = 0; i < 2; ++i){
+        MeshVertex light_vertex = {
+            _scene->obj_list[0]->light_triangle[i]._v0[0],
+            _scene->obj_list[0]->light_triangle[i]._v0[1],
+            _scene->obj_list[0]->light_triangle[i]._v0[2],
+            1,
+            1,
+            1
+        };
+
+        _meshBuffer.push_back(light_vertex);
+
+        light_vertex = {
+            _scene->obj_list[0]->light_triangle[i]._v1[0],
+            _scene->obj_list[0]->light_triangle[i]._v1[1],
+            _scene->obj_list[0]->light_triangle[i]._v1[2],
+            1,
+            1,
+            1
+        };
+
+        _meshBuffer.push_back(light_vertex);
+
+         light_vertex = {
+            _scene->obj_list[0]->light_triangle[i]._v2[0],
+            _scene->obj_list[0]->light_triangle[i]._v2[1],
+            _scene->obj_list[0]->light_triangle[i]._v2[2],
+            1,
+            1,
+            1
+        };
+        _meshBuffer.push_back(light_vertex);
+    }
 
     // Set the objects we need in the rendering process (namely, VAO, VBO and EBO).
     if (!_VAO)

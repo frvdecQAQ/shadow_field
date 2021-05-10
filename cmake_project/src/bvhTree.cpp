@@ -38,6 +38,7 @@ void BVHTree::build(Object& obj)
     int faceNumber = 0;
 
     int facenumber = obj._indices.size() / 3;
+    //std::cout << "faceNumber = " << faceNumber << std::endl;
     _triangles.clear();
 
     for (int i = 0; i < facenumber; ++i)

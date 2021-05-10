@@ -305,7 +305,7 @@ int main(int argc, char** argv){
         // Render.
         //int f;
         //scanf("%d", &f);
-        scene.change(camera_pos, camera_dir);
+        //scene.change(camera_pos, camera_dir);
         bool render_again = true;
         renderer.Render(render_again);
 
@@ -534,6 +534,8 @@ void dataProcessing(int argc, char** argv)
             if (scene.type_list[tmp_cnt] == 1)tmp = new GeneralObject();
             else tmp = new DiffuseObject();
             tmp->init(obj_path.c_str(), albedo, scene.scale[tmp_cnt]);
+            //std::cout << obj_path << std::endl;
+            //std::cout << tmp->_indices.size() << std::endl;
             tmp->project2SH(transferType, band, sampleNumber, 1);
             tmp->write2Diskbin(save_path);
         }

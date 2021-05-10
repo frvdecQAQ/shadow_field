@@ -7,6 +7,7 @@
 #include <glm/glm.hpp>
 #include "utils.h"
 #include "sampler.h"
+#include "shorder.hpp"
 
 enum TransferType
 {
@@ -34,6 +35,7 @@ struct Intersection
 class Object
 {
 public:
+    ~Object();
     Object():
         _theta(0.0f),
         _rx(0.0f),
@@ -41,6 +43,12 @@ public:
         _rz(1.0f),
         _difforGeneral(false)
     {
+        light_triangle[0]._v0 = glm::vec3(1 * 0.04, 0.3, 0);
+        light_triangle[0]._v1 = glm::vec3(-1* 0.04, 0.3, 0);
+        light_triangle[0]._v2 = glm::vec3(0, 0.3, 1* 0.04);
+        light_triangle[1]._v0 = glm::vec3(1* 0.04, 0.3, 0);
+        light_triangle[1]._v1 = glm::vec3(-1* 0.04, 0.3, 0);
+        light_triangle[1]._v2 = glm::vec3(0, 0.3, -1* 0.04);
     }
 
     void init(std::string path, glm::vec3 albedo, glm::vec3 scale, bool texture = true);
@@ -101,6 +109,9 @@ public:
 
     std::vector<std::vector<float>> _ShadowField;
     Sampler point_sample;
+
+    Triangle light_triangle[2];
+    float *light_coef = nullptr;
     
 };
 

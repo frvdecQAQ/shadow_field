@@ -29,6 +29,10 @@ void DiffuseObject::write2Diskbin(std::string filename)
         }
     }
 
+    for(int i = 0; i < size*3*n*n; ++i){
+        out.write((char*)&light_coef[i], sizeof(float));
+    }
+
     int tmp = sqrt(shadowSampleNumber);
     size = sphereNumber * point_sample._samples.size();
     for (int i = 0; i < size; ++i) 
@@ -44,6 +48,7 @@ void DiffuseObject::write2Diskbin(std::string filename)
             out.write((char*)&point_sample._samples[i]._sphericalCoord[j], sizeof(float));
         }
     }
+
     out.close();
 
     std::cout << "Diffuse object generated." << std::endl;
@@ -85,6 +90,10 @@ void DiffuseObject::readFDiskbin(std::string filename)
        }
    }
 
+   for(int i = 0; i < size*3*n*n; ++i){
+        in.read((char*)&light_coef[i], sizeof(float));
+    }
+
    size = sphereNumber * shadowSampleNumber;
    std::vector<float> tmp(band2, 0.0f);
    for (int i = 0; i < size; ++i)
@@ -107,7 +116,6 @@ void DiffuseObject::readFDiskbin(std::string filename)
        cartesian.z = cos(spherical[0]);
        point_sample._samples.emplace_back(Sample(cartesian, spherical));
    }
-   std::cout << "size = " << point_sample._samples.size() << std::endl;
    in.close();
 }
 
@@ -216,6 +224,7 @@ void DiffuseObject::transform(const glm::mat4& m) {
             rotate_mat_inv[i][3] -= rotate_mat_inv[i][j] * rotate_mat[j][3];
         }
     }
+    
     /*std::cout << "rotate" << std::endl;
     for (int i = 0; i < 4; ++i) {
         for (int j = 0; j < 4; ++j) {
@@ -357,6 +366,45 @@ void DiffuseObject::diffuseUnshadow(int size, int band2, Sampler* sampler, Trans
             _TransferFunc[i][j] *= weight;
         }
     }
+    
+#pragma omp parallel for
+    for (int i = 0; i < size; i++)
+    {
+        if(i % 1000 == 0)std::cout << i << "/" << size << std::endl;
+        int index = 3 * i;
+        int sample_sz = sampler->_samples.size();
+        for (int j = 0; j < sample_sz; j++)
+        {
+            Sample stemp = sampler->_samples[j];
+            float H = 0.0f;
+            Ray testRay(glm::vec3(_vertices[index + 0], _vertices[index + 1], _vertices[index + 2]),
+                            stemp._cartesCoord);
+            bool visibility = false;
+            for(int k = 0; k < 2; ++k){
+                visibility |= rayTriangle(testRay, light_triangle[k], false);
+            }
+            if(visibility)
+            {
+                H = 1.0f;
+            }
+            //Projection.
+            for (int k = 0; k < band2; k++)
+            {
+                float SHvalue = stemp._SHvalue[k];
+
+                light_coef[i*3*band2+k] += SHvalue * H;
+                light_coef[i*3*band2+band2+k] += SHvalue * H;
+                light_coef[i*3*band2+2*band2+k] += SHvalue * H;
+            }
+        }
+    }
+    // Normalization.
+    weight = 4.0f * M_PI / sampler->_samples.size();
+#pragma omp parallel for
+    for(int i = 0; i < size*3*band2; ++i){
+        light_coef[i] *= weight;
+    }
+    
     if (type == T_UNSHADOW)
         std::cout << "Unshadowed transfer vector generated." << std::endl;
 }

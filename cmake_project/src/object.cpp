@@ -4,6 +4,10 @@
 #include <iostream>
 #include <cmath>
 
+Object::~Object(){
+    if(light_coef != nullptr)delete[] light_coef;
+}
+
 void Object::normVertices(glm::vec3 scale)
 {
     int size = _vertices.size();
@@ -138,14 +142,10 @@ void Object::init(std::string path, glm::vec3 albedo, glm::vec3 scale, bool text
     init_y = _cy;
     init_z = _cz;
 
-    rotate_mat[0][0] = rotate_mat[1][1] = rotate_mat[2][2] = rotate_mat[3][3] = 1;
-    rotate_mat_inv[0][0] = rotate_mat_inv[1][1] = rotate_mat_inv[2][2] = rotate_mat_inv[3][3] = 1;
-    for(int i = 0; i < 4; ++i){
-        for(int j = 0; j < 4; ++j){
-            if(i == j)rotate_mat[i][j] = rotate_mat_inv[i][j] = 1;
-            else rotate_mat_inv[i][j] = rotate_mat[i][j] = 0;
-        }
-    }
+    rotate_mat = glm::mat4(1.0f);
+    rotate_mat_inv = glm::mat4(1.0f);
+
+    light_coef = new float[vertex_size*n*n];
 }
 
 void Object::queryOOF(glm::vec3 p, float* coef, bool debug) {
