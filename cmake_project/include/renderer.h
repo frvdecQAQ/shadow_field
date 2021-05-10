@@ -91,6 +91,7 @@ private:
     cufftComplex *gpu_pool0, *gpu_pool1, *gpu_pool2;
     float *cpu_data[6] = {nullptr, nullptr, nullptr, nullptr, nullptr, nullptr};
     int multi_product_num;
+    cufftHandle plan;
 
     void objDraw();
     //void setupDiffuseBuffer(int type);

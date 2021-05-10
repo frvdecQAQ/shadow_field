@@ -212,7 +212,7 @@ __global__ void multiply(cufftComplex* A, cufftComplex* B)
 // layout: SH_0 [ at(0,0), at(1,-1), at(1,0), ... ], SH_1, ...
 void shprod_many(float* A, float* B, float* C, float* D, float* E, float* F,
             cufftComplex* pool0, cufftComplex* pool1, cufftComplex* pool2,
-            int multi_product_num)
+            int multi_product_num, cufftHandle plan)
 {
 //	auto t0 = std::chrono::system_clock::now();
 //	auto t1 = std::chrono::system_clock::now();
@@ -229,9 +229,9 @@ void shprod_many(float* A, float* B, float* C, float* D, float* E, float* F,
 	//cudaMalloc((void**)&pool1, sizeof(cufftComplex)*N*N*num);
 	//cudaMalloc((void**)&pool2, sizeof(cufftComplex)*N*N*num);
 	// plan DFT
-	cufftHandle plan;
-	int sizes[2] = {N,N};
-	cufftPlanMany(&plan, 2, sizes, NULL, 1, N*N, NULL, 1, N*N, CUFFT_C2C, multi_product_num);
+	//cufftHandle plan;
+	//int sizes[2] = {N,N};
+	//cufftPlanMany(&plan, 2, sizes, NULL, 1, N*N, NULL, 1, N*N, CUFFT_C2C, multi_product_num);
     //console.time("exclude_planning " + std::to_string(num));
 
 //STARTTIME

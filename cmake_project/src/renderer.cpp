@@ -127,6 +127,9 @@ void Renderer::Setup(Scene* scene, Lighting* light){
     cudaMalloc((void**)&gpu_pool1, sizeof(cufftComplex)*N*N*multi_product_num);
     cudaMalloc((void**)&gpu_pool2, sizeof(cufftComplex)*N*N*multi_product_num);
     for(int i = 0; i < 6; ++i)cpu_data[i] = new float[multi_product_num*n*n];
+
+    int sizes[2] = {N,N};
+	cufftPlanMany(&plan, 2, sizes, NULL, 1, N*N, NULL, 1, N*N, CUFFT_C2C, multi_product_num);
 }
 
 void Renderer::SetupColorBuffer(int type, glm::vec3 viewDir, bool diffuse)
@@ -243,13 +246,6 @@ void Renderer::setupBuffer(int type, glm::vec3 viewDir)
     int sz = (int)_scene->obj_list.size();
     _meshBuffer.clear();
 
-    //viewDir = glm::normalize(viewDir);
-
-    /*shRotate sh_rotate(band);
-    float* coef_r = new float[band2];
-    float* coef_g = new float[band2];
-    float* coef_b = new float[band2];
-    float* coef_tmp = new float[band2];*/
     int vertex_number;
     int base_index = 0;
     for(int obj_id = 0; obj_id < sz; ++obj_id)
@@ -290,7 +286,7 @@ void Renderer::setupBuffer(int type, glm::vec3 viewDir)
     //multi_product(gpu_data[0], gpu_data[1], gpu_data[2], gpu_data[3], gpu_data[4], gpu_data[5],
     //    multi_product_num, 1);
     shprod_many(gpu_data[0], gpu_data[1], gpu_data[2], gpu_data[3], gpu_data[4], gpu_data[5], 
-            gpu_pool0, gpu_pool1, gpu_pool2, multi_product_num);
+            gpu_pool0, gpu_pool1, gpu_pool2, multi_product_num, plan);
     cudaMemcpy(cpu_data[5], gpu_data[5], sizeof(float)*multi_product_num*band2, cudaMemcpyDeviceToHost);
 
     end_time = glfwGetTime();

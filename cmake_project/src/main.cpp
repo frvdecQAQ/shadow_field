@@ -246,7 +246,7 @@ int main(int argc, char** argv){
         // Render.
         //int f;
         //scanf("%d", &f);
-        scene.change(camera_pos, camera_dir);
+        //scene.change(camera_pos, camera_dir);
         bool render_again = true;
         renderer.Render(render_again);
 
