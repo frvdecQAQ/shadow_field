@@ -155,6 +155,7 @@ void Object::queryOOF(glm::vec3 p, float* coef, bool debug) {
     for (int i = 0; i < band2; ++i)coef[i] = 0;
 
     float nx, ny, nz;
+    
     nx = p[0];
     ny = p[1];
     nz = p[2];
@@ -162,6 +163,8 @@ void Object::queryOOF(glm::vec3 p, float* coef, bool debug) {
     p[1] = rotate_mat_inv[1][0] * nx + rotate_mat_inv[1][1] * ny + rotate_mat_inv[1][2] * nz + rotate_mat_inv[1][3];
     p[2] = rotate_mat_inv[2][0] * nx + rotate_mat_inv[2][1] * ny + rotate_mat_inv[2][2] * nz + rotate_mat_inv[2][3];
     glm::vec3 p_r_vec = p - glm::vec3(init_x, init_y, init_z);
+
+    //glm::vec3 p_r_vec = p-glm::vec3(_cx, _cy, _cz);
     float p_r_dis = std::sqrt(p_r_vec[0] * p_r_vec[0] + p_r_vec[1] * p_r_vec[1] + p_r_vec[2] * p_r_vec[2]);
     if (p_r_dis < 1e-6)return;
 

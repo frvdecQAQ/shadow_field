@@ -147,10 +147,10 @@ void DiffuseObject::testMap(float* coef, const std::string& path) {
     cv::imwrite(path, gray);
 }
 
-void DiffuseObject::transform(const glm::mat4& m, shRotate& sh_rotate) {
+void DiffuseObject::transform(const glm::mat4& m) {
     int band2 = _band * _band;
-    float* coef_in = new float[band2];
-    float* coef_out = new float[band2];
+    //float* coef_in = new float[band2];
+    //float* coef_out = new float[band2];
     int sz = _vertices.size() / 3;
     float nx, ny, nz;
     nx = _cx;
@@ -159,7 +159,18 @@ void DiffuseObject::transform(const glm::mat4& m, shRotate& sh_rotate) {
     _cx = m[0][0] * nx + m[0][1] * ny + m[0][2] * nz + m[0][3];
     _cy = m[1][0] * nx + m[1][1] * ny + m[1][2] * nz + m[1][3];
     _cz = m[2][0] * nx + m[2][1] * ny + m[2][2] * nz + m[2][3];
-    for (int i = 0; i < sz; ++i) {
+
+    Eigen::Matrix3d rotate_Matrix;
+    for(int i = 0; i < 3; ++i)for(int j = 0; j < 3; ++j){
+        rotate_Matrix(i, j) = m[i][j];
+    }
+    Eigen::Quaterniond r1(rotate_Matrix);
+    std::unique_ptr<sh::Rotation> r1_sh(sh::Rotation::Create(n-1, r1));
+    std::vector<double> coef_a, coef_b;
+    coef_a.resize(band2, 0.0);
+    coef_b.resize(band2, 0.0);
+
+    for(int i = 0; i < sz; ++i) {
         int cur_index = i * 3;
         nx = _vertices[cur_index];
         ny = _vertices[cur_index + 1];
@@ -167,25 +178,25 @@ void DiffuseObject::transform(const glm::mat4& m, shRotate& sh_rotate) {
         _vertices[cur_index] = m[0][0] * nx + m[0][1] * ny + m[0][2] * nz + m[0][3];
         _vertices[cur_index + 1] = m[1][0] * nx + m[1][1] * ny + m[1][2] * nz + m[1][3];
         _vertices[cur_index + 2] = m[2][0] * nx + m[2][1] * ny + m[2][2] * nz + m[2][3];
-        for (int j = 0; j < band2; ++j)coef_in[j] = _DTransferFunc[i][j].r;
-        sh_rotate.rotate(coef_in, coef_out, m, _band);
-        for (int j = 0; j < band2; ++j) {
-            _DTransferFunc[i][j].r = coef_out[j];
-            coef_in[j] = _DTransferFunc[i][j].g;
-        }
-        sh_rotate.rotate(coef_in, coef_out, m, _band);
-        for (int j = 0; j < band2; ++j) {
-            _DTransferFunc[i][j].g = coef_out[j];
-            coef_in[j] = _DTransferFunc[i][j].b;
-        }
-        sh_rotate.rotate(coef_in, coef_out, m, _band);
-        for (int j = 0; j < band2; ++j)_DTransferFunc[i][j].b = coef_out[j];
+
+        for(int j = 0; j < band2; ++j)coef_a[j] = _DTransferFunc[i][j].r;
+        r1_sh->Apply(coef_a, &coef_b);
+        for(int j = 0; j < band2; ++j)_DTransferFunc[i][j].r = coef_b[j];
+
+        for(int j = 0; j < band2; ++j)coef_a[j] = _DTransferFunc[i][j].g;
+        r1_sh->Apply(coef_a, &coef_b);
+        for(int j = 0; j < band2; ++j)_DTransferFunc[i][j].g = coef_b[j];
+
+        for(int j = 0; j < band2; ++j)coef_a[j] = _DTransferFunc[i][j].b;
+        r1_sh->Apply(coef_a, &coef_b);
+        for(int j = 0; j < band2; ++j)_DTransferFunc[i][j].b = coef_b[j];
     }
+
     int point_sz = point_sample._samples.size();
     for (int i = 0; i < sphereNumber*point_sz; ++i) {
-        for (int j = 0; j < band2; ++j)coef_in[j] = _ShadowField[i][j];
-        sh_rotate.rotate(coef_in, coef_out, m, _band);
-        for (int j = 0; j < band2; ++j)_ShadowField[i][j] = coef_out[j];
+        for(int j = 0; j < band2; ++j)coef_a[j] = _ShadowField[i][j];
+        r1_sh->Apply(coef_a, &coef_b);
+        for(int j = 0; j < band2; ++j)_ShadowField[i][j] = coef_b[j];
     }
 
     glm::mat4 tmp_mat;
@@ -226,8 +237,8 @@ void DiffuseObject::transform(const glm::mat4& m, shRotate& sh_rotate) {
         }std::cout << std::endl;
     }*/
 
-    delete[] coef_in;
-    delete[] coef_out;
+    //delete[] coef_in;
+    //delete[] coef_out;
 }
 
 void DiffuseObject::diffuseUnshadow(int size, int band2, Sampler* sampler, TransferType type, BVHTree* Inbvht)

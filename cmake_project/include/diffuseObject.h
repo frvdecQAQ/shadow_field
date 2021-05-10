@@ -7,6 +7,8 @@
 #include "sampler.h"
 #include "object.h"
 #include "shRotate.h"
+#include "shRotateMatrix.h"
+#include "shorder.hpp"
 
 class DiffuseObject : public Object
 {
@@ -18,7 +20,7 @@ public:
     void project2SH(int mode, int band, int sampleNumber, int bounce) override;
     void write2Diskbin(std::string filename) override;
     void readFDiskbin(std::string filename) override;
-    void transform(const glm::mat4& m, shRotate& sh_rotate);
+    void transform(const glm::mat4& m);
     // For read.
     int debug_cnt = 0;
     std::vector<std::vector<glm::vec3>> _DTransferFunc;

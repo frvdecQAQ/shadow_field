@@ -281,7 +281,7 @@ void Renderer::setupBuffer(int type, glm::vec3 viewDir)
     std::cout << "time 0 = " << end_time-start_time << std::endl;
     start_time = end_time;
     
-    /*for(int i = 0; i < 5; ++i)
+    for(int i = 0; i < 5; ++i)
     {
         cudaMemcpy(gpu_data[i], cpu_data[i], sizeof(float)*multi_product_num*band2, cudaMemcpyHostToDevice);
     }
@@ -289,16 +289,16 @@ void Renderer::setupBuffer(int type, glm::vec3 viewDir)
     //    multi_product_num, 1);
     shprod_many(gpu_data[0], gpu_data[1], gpu_data[2], gpu_data[3], gpu_data[4], gpu_data[5], 
             gpu_pool0, gpu_pool1, gpu_pool2, multi_product_num, plan);
-    cudaMemcpy(cpu_data[5], gpu_data[5], sizeof(float)*multi_product_num*band2, cudaMemcpyDeviceToHost);*/
+    cudaMemcpy(cpu_data[5], gpu_data[5], sizeof(float)*multi_product_num*band2, cudaMemcpyDeviceToHost);
     
-    for(int i = 0; i < multi_product_num; ++i){
+    /*for(int i = 0; i < multi_product_num; ++i){
         our_multi_product(cpu_data[0]+i*band2, cpu_data[1]+i*band2, cpu_data[2]+i*band2,
                           cpu_data[3]+i*band2, cpu_data[4]+i*band2, cpu_data[5]+i*band2);
         //precise_multi_product(cpu_data[0]+i*band2, cpu_data[1]+i*band2, cpu_data[2]+i*band2,
         //                    cpu_data[3]+i*band2, cpu_data[4]+i*band2, cpu_data[5]+i*band2);
         //brute_multi_product(cpu_data[0]+i*band2, cpu_data[1]+i*band2, cpu_data[2]+i*band2,
         //                    cpu_data[3]+i*band2, cpu_data[4]+i*band2, cpu_data[5]+i*band2);
-    }
+    }*/
 
     end_time = glfwGetTime();
     std::cout << "time 1 = " << end_time-start_time << std::endl;
