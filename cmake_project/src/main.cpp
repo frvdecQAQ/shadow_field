@@ -27,6 +27,8 @@
 #include "multi_product.h"
 #include "renderer.h"
 #include "shorder.hpp"
+#define STB_IMAGE_WRITE_IMPLEMENTATION
+#include "stb_image_write.h"
 //#define FULL_SCREEN
 
 // Window size.
@@ -67,13 +69,15 @@ int shadowSampleNumber = 48 * 48;
 bool drawCubemap = false;
 bool simpleLight = true;
 bool lastSimple = true;
+bool renderBar = true;
 
 // Camera.
-float camera_dis = 1.5f;
-glm::vec3 camera_pos(0.0f, 0.0f, 1.0f);
+float camera_dis = 1.1f;
+glm::vec3 camera_pos(0.789035f, 0.290739f, -0.143193f);
 glm::vec3 last_camera_pos(0.0f, 0.0f, 1.0f);
 glm::vec3 camera_dir(0.0f, 0.0f, 0.0f);
 glm::vec3 camera_up(0.0f, 1.0f, 0.0f);
+glm::vec3 camera_front(0.0f, 0.0f, -1.0f);
 
 //Simple lighting.
 glm::vec3 light_dir(0.0f, 0.0f, 1.0f);
@@ -111,6 +115,26 @@ void dataLoading(int argc, char** argv);
 void shaderLoading();
 // Miscellaneous.
 void calculateFPS();
+
+void saveImage(char* filepath, GLFWwindow* w) {
+	int width, height;
+	glfwGetFramebufferSize(w, &width, &height);
+	GLsizei nrChannels = 3;
+	GLsizei stride = nrChannels * width;
+	stride += (stride % 4) ? (4 - stride % 4) : 0;
+	GLsizei bufferSize = stride * height;
+	std::vector<char> buffer(bufferSize);
+	glPixelStorei(GL_PACK_ALIGNMENT, 4);
+	glReadBuffer(GL_FRONT);
+	glReadPixels(0, 0, width, height, GL_RGB, GL_UNSIGNED_BYTE, buffer.data());
+	stbi_flip_vertically_on_write(true);
+	stbi_write_png(filepath, width, height, nrChannels, buffer.data(), stride);
+    FILE* pos_file = fopen("pos.txt", "w");
+    fprintf(pos_file, "%lf %lf %lf\n", camera_pos[0], camera_pos[1], camera_pos[2]);
+    fprintf(pos_file, "%lf\n", camera_dis);
+    fclose(pos_file);
+}
+
 
 
 int main(int argc, char** argv){
@@ -286,7 +310,7 @@ int main(int argc, char** argv){
         renderer.Render(render_again);
 
         // Render AntTweakBar UI.
-        TwDraw();
+        if(renderBar) TwDraw();
 
         // Swap the screen buffers.
         glfwSwapBuffers(window);
@@ -524,6 +548,20 @@ int key_callback(GLFWwindow* window, int key, int scancode, int action, int mode
 {
     if (key == GLFW_KEY_ESCAPE && action == GLFW_PRESS)
         glfwSetWindowShouldClose(window, GL_TRUE);
+
+    float cameraSpeed = 0.2;
+    if (key == GLFW_KEY_W && action == GLFW_PRESS)
+        camera_pos += cameraSpeed * camera_front;
+    if (key == GLFW_KEY_S && action == GLFW_PRESS)
+        camera_pos -= cameraSpeed * camera_front;
+    if (key == GLFW_KEY_A && action == GLFW_PRESS)
+        camera_pos -= cameraSpeed * glm::normalize(glm::cross((camera_dir - camera_dis * camera_pos), camera_up));
+    if (key == GLFW_KEY_D && action == GLFW_PRESS)
+        camera_pos += cameraSpeed * glm::normalize(glm::cross((camera_dir - camera_dis * camera_pos), camera_up));
+    if (key == GLFW_KEY_K && action == GLFW_PRESS)
+        saveImage("./result.png", window);
+    if (key == GLFW_KEY_H && action == GLFW_PRESS)
+        renderBar = !renderBar;
 
     if (key >= 0 && key < 1024)
     {

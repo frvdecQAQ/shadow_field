@@ -159,32 +159,48 @@ void Renderer::our_multi_product(float* a, float* b, float* c, float* d, float*e
     }
 }
 
-void Renderer::tripleProduct(float* result, float* second, int band2) {
-    std::vector<float>first;
-    first.clear();
-    for (int i = 0; i < band2; ++i) {
-        first.push_back(result[i]);
-        result[i] = 0.0f;
-    }
-    int sz = dst.size();
-    for (int i = 0; i < sz; ++i) {
-        result[dst[i]] += first[src[i].first] * second[src[i].second] * coef[i];
-    }
-    /*SH<n> sh1, sh2, sh3;
-    for (int l = 0; l < n; ++l) {
-        for (int m = -l; m <= l; ++m) {
-            int index = l * (l + 1) + m;
-            sh1.at(l, m) = result[index];
-            sh2.at(l, m) = second[index];
+void Renderer::precise_multi_product(float *a, float *b, float *c, float *d, float *e, float *f) {
+    SH<n> sh1, sh2, sh3, sh4, sh5, sh6;
+    int index;
+    for(int l = 0; l < n; ++l){
+        for(int m = -l; m <= l; ++m){
+            index = l*(l+1)+m;
+            sh1.at(l, m) = a[index];
+            sh2.at(l, m) = b[index];
+            sh3.at(l, m) = c[index];
+            sh4.at(l, m) = d[index];
+            sh5.at(l, m) = e[index];
         }
     }
-    sh3 = fs2sh(fastmul(sh2fs(sh1), sh2fs(sh2)));
-    for (int l = 0; l < n; ++l) {
-        for (int m = -l; m <= l; ++m) {
-            int index = l * (l + 1) + m;
-            result[index] = sh3.at(l, m);
+    sh6 = precise(sh1, sh2, sh3, sh4, sh5);
+    for(int l = 0; l < n; ++l){
+        for(int m = -l; m <= l; ++m){
+            index = l*(l+1)+m;
+            f[index]= sh6.at(l, m);
         }
-    }*/
+    }
+}
+
+void Renderer::brute_multi_product(float *a, float *b, float *c, float *d, float *e, float *f){
+    SH<n> sh1, sh2, sh3, sh4, sh5, sh6;
+    int index;
+    for(int l = 0; l < n; ++l){
+        for(int m = -l; m <= l; ++m){
+            index = l*(l+1)+m;
+            sh1.at(l, m) = a[index];
+            sh2.at(l, m) = b[index];
+            sh3.at(l, m) = c[index];
+            sh4.at(l, m) = d[index];
+            sh5.at(l, m) = e[index];
+        }
+    }
+    sh6 = sh1*sh2*sh3*sh4*sh5;
+    for(int l = 0; l < n; ++l){
+        for(int m = -l; m <= l; ++m){
+            index = l*(l+1)+m;
+            f[index]= sh6.at(l, m);
+        }
+    }
 }
 
 float Renderer::testCoef(float* coef, float theta, float phi) {
@@ -264,8 +280,8 @@ void Renderer::setupBuffer(int type, glm::vec3 viewDir)
     double end_time = glfwGetTime();
     std::cout << "time 0 = " << end_time-start_time << std::endl;
     start_time = end_time;
-    /*
-    for(int i = 0; i < 5; ++i)
+    
+    /*for(int i = 0; i < 5; ++i)
     {
         cudaMemcpy(gpu_data[i], cpu_data[i], sizeof(float)*multi_product_num*band2, cudaMemcpyHostToDevice);
     }
@@ -273,11 +289,15 @@ void Renderer::setupBuffer(int type, glm::vec3 viewDir)
     //    multi_product_num, 1);
     shprod_many(gpu_data[0], gpu_data[1], gpu_data[2], gpu_data[3], gpu_data[4], gpu_data[5], 
             gpu_pool0, gpu_pool1, gpu_pool2, multi_product_num, plan);
-    cudaMemcpy(cpu_data[5], gpu_data[5], sizeof(float)*multi_product_num*band2, cudaMemcpyDeviceToHost);
-    */
+    cudaMemcpy(cpu_data[5], gpu_data[5], sizeof(float)*multi_product_num*band2, cudaMemcpyDeviceToHost);*/
+    
     for(int i = 0; i < multi_product_num; ++i){
         our_multi_product(cpu_data[0]+i*band2, cpu_data[1]+i*band2, cpu_data[2]+i*band2,
                           cpu_data[3]+i*band2, cpu_data[4]+i*band2, cpu_data[5]+i*band2);
+        //precise_multi_product(cpu_data[0]+i*band2, cpu_data[1]+i*band2, cpu_data[2]+i*band2,
+        //                    cpu_data[3]+i*band2, cpu_data[4]+i*band2, cpu_data[5]+i*band2);
+        //brute_multi_product(cpu_data[0]+i*band2, cpu_data[1]+i*band2, cpu_data[2]+i*band2,
+        //                    cpu_data[3]+i*band2, cpu_data[4]+i*band2, cpu_data[5]+i*band2);
     }
 
     end_time = glfwGetTime();
