@@ -1,0 +1,12 @@
+4
+plane.obj
+lamp.obj
+violin.obj
+al.obj
+
+0 0 0 0
+
+1 1 1
+1 1 1
+1 1 1
+1 1 1

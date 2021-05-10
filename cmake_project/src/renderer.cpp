@@ -42,7 +42,6 @@ Renderer::~Renderer()
     for(int i = 0; i < 6; ++i){
         if(cpu_data[i] != nullptr)delete[] cpu_data[i];
     }
-    delete[]hdrTextures;
 }
 
 void Renderer::loadTriple(int _band) {
@@ -98,11 +97,11 @@ void Renderer::loadTriple(int _band) {
 void Renderer::Init(const int lightNumber)
 {
     // Initialize cubemap.
-    hdrTextures = new HDRTextureCube[lightNumber];
+    /*hdrTextures = new HDRTextureCube[lightNumber];
     for (int i = 0; i < lightNumber; i++)
     {
         hdrTextures[i].Init("lightings/cross/" + lightings[i] + "_cross" + ".hdr");
-    }
+    }*/
 
     // Initialize projection matrix.
     projection = glm::perspective(ZOOM, (float)WIDTH / (float)HEIGHT, NEAR_PLANE, FAR_PLANE);
@@ -111,6 +110,12 @@ void Renderer::Init(const int lightNumber)
 void Renderer::Setup(Scene* scene, Lighting* light){
     _scene = scene;
     _lighting = light;
+
+    if(light->light_type == 1)
+    {
+        hdrTextures.Init(light->cube_map_path);
+        std::cout << light->cube_map_path;
+    }
 
     multi_product_num = 0;
     for(int obj_id = 0; obj_id < scene->obj_num; ++obj_id){
@@ -384,38 +389,41 @@ void Renderer::setupBuffer(int type, glm::vec3 viewDir)
     std::cout << "time 2 = " << end_time-start_time << std::endl;
     start_time = end_time;
 
-    for(int i = 0; i < 2; ++i){
-        MeshVertex light_vertex = {
-            _scene->obj_list[0]->light_triangle[i]._v0[0],
-            _scene->obj_list[0]->light_triangle[i]._v0[1],
-            _scene->obj_list[0]->light_triangle[i]._v0[2],
-            1,
-            1,
-            1
-        };
+    if(_lighting->light_type == 2)
+    {
+        for(int i = 0; i < 2; ++i){
+            MeshVertex light_vertex = {
+                _scene->obj_list[0]->light_triangle[i]._v0[0],
+                _scene->obj_list[0]->light_triangle[i]._v0[1],
+                _scene->obj_list[0]->light_triangle[i]._v0[2],
+                1,
+                1,
+                1
+            };
 
-        _meshBuffer.push_back(light_vertex);
+            _meshBuffer.push_back(light_vertex);
 
-        light_vertex = {
-            _scene->obj_list[0]->light_triangle[i]._v1[0],
-            _scene->obj_list[0]->light_triangle[i]._v1[1],
-            _scene->obj_list[0]->light_triangle[i]._v1[2],
-            1,
-            1,
-            1
-        };
+            light_vertex = {
+                _scene->obj_list[0]->light_triangle[i]._v1[0],
+                _scene->obj_list[0]->light_triangle[i]._v1[1],
+                _scene->obj_list[0]->light_triangle[i]._v1[2],
+                1,
+                1,
+                1
+            };
 
-        _meshBuffer.push_back(light_vertex);
+            _meshBuffer.push_back(light_vertex);
 
-         light_vertex = {
-            _scene->obj_list[0]->light_triangle[i]._v2[0],
-            _scene->obj_list[0]->light_triangle[i]._v2[1],
-            _scene->obj_list[0]->light_triangle[i]._v2[2],
-            1,
-            1,
-            1
-        };
-        _meshBuffer.push_back(light_vertex);
+            light_vertex = {
+                _scene->obj_list[0]->light_triangle[i]._v2[0],
+                _scene->obj_list[0]->light_triangle[i]._v2[1],
+                _scene->obj_list[0]->light_triangle[i]._v2[2],
+                1,
+                1,
+                1
+            };
+            _meshBuffer.push_back(light_vertex);
+        }
     }
 
     // Set the objects we need in the rendering process (namely, VAO, VBO and EBO).
@@ -471,9 +479,7 @@ void Renderer::Render(bool render_again)
 
     objDraw();
 
-    //std::cout << "Render done" << std::endl;
-
-    /*if (drawCubemap)
+    if (_lighting->light_type == 1)
     {
         // Render cubemap.
         shader = ResourceManager::GetShader("cubemap");
@@ -482,6 +488,6 @@ void Renderer::Render(bool render_again)
         view = glm::mat4(glm::mat3(view));
         shader.SetMatrix4("view", view);
         shader.SetMatrix4("projection", projection);
-        hdrTextures[lightingIndex].Draw();
-    }*/
+        hdrTextures.Draw();
+    }
 }

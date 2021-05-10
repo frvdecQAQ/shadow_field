@@ -26,9 +26,9 @@ Shader ResourceManager::LoadShader(const string &vShaderFile, const string &fSha
                                    std::string name, const GLchar **transformFeedbackVaryings,
                                    unsigned int numTransformFeedbackVaryings, bool interleavedTransformFeedbackAttribs)
 {
-    if (Shaders.find(name) != Shaders.end()) {
+    /*if (Shaders.find(name) != Shaders.end()) {
         return Shaders[name];
-    }
+    }*/
     return Shaders[name] = loadShaderFromFile(vShaderFile, fShaderFile, gShaderFile, transformFeedbackVaryings,
                                        numTransformFeedbackVaryings, interleavedTransformFeedbackAttribs);
 }

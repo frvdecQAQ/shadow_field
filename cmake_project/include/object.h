@@ -51,7 +51,7 @@ public:
         light_triangle[1]._v2 = glm::vec3(0, 0.3, -1* 0.04);
     }
 
-    void init(std::string path, glm::vec3 albedo, glm::vec3 scale, bool texture = true);
+    void init(std::string path, glm::vec3 albedo, bool texture = true);
     void queryOOF(glm::vec3 p, float* coef, bool debug = false);
 
     // Project to SH function.

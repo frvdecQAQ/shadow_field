@@ -40,7 +40,7 @@ unsigned Object::index_from_str(const std::string& str) {
     return atoi(str.substr(0, pos).c_str());
 }
 
-void Object::init(std::string path, glm::vec3 albedo, glm::vec3 scale, bool texture)
+void Object::init(std::string path, glm::vec3 albedo, bool texture)
 {
     _modelname = path;
     _albedo = albedo;
@@ -70,6 +70,8 @@ void Object::init(std::string path, glm::vec3 albedo, glm::vec3 scale, bool text
 
     _vmaxX = _vmaxY = _vmaxZ = -FLT_MAX;
     _vminX = _vminY = _vminZ = FLT_MAX;
+
+    std::cout << "here" << std::endl;
 
     while (getline(in, line))
     {
@@ -146,6 +148,8 @@ void Object::init(std::string path, glm::vec3 albedo, glm::vec3 scale, bool text
     rotate_mat_inv = glm::mat4(1.0f);
 
     light_coef = new float[vertex_size*n*n];
+
+    std::cout << "init done" << std::endl;
 }
 
 void Object::queryOOF(glm::vec3 p, float* coef, bool debug) {

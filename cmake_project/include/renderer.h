@@ -75,7 +75,7 @@ private:
     std::vector<float> _colorBuffer;
     std::vector<MeshVertex> _meshBuffer;
 
-    HDRTextureCube* hdrTextures;
+    HDRTextureCube hdrTextures;
     glm::mat4 projection;
 
     GLuint _VAO;

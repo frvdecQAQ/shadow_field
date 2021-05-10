@@ -98,11 +98,11 @@ inline void UIInit()
     TwAddVarRW(bar, "CameraRotation", TW_TYPE_DIR3F, &camera_pos,
                " label='Camera Direction' opened=true help='Change the camera direction.'");
 
-    TwAddVarRW(bar, "LightRotation", TW_TYPE_DIR3F, &light_dir,
-               " label='Light Direction' opened=true help='Change the light direction.'");
+    /*TwAddVarRW(bar, "LightRotation", TW_TYPE_DIR3F, &light_dir,
+               " label='Light Direction' opened=true help='Change the light direction.'");*/
 
-    TwAddVarRW(bar, "Simple Light", TW_TYPE_BOOLCPP, &simpleLight,
-               " label='Simple Light' help='Change the simple light'");
+    /*TwAddVarRW(bar, "Simple Light", TW_TYPE_BOOLCPP, &simpleLight,
+               " label='Simple Light' help='Change the simple light'");*/
 
     TwBar* info = TwNewBar("Mesh");
     TwDefine("Mesh size='250 100' text=light  color='40 40 40' position='0 440' valueswidth=100");

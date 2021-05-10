@@ -1,7 +1,7 @@
 #include "scene.h"
 
 void Scene::init(std::string& path) {
-	FILE* config_file = fopen((path+"/config.txt").c_str(), "r");
+	FILE* config_file = fopen((path+"/object_config.txt").c_str(), "r");
 	assert(config_file != NULL);
 	fscanf(config_file, "%d", &obj_num);
 	char* obj_name = new char[256];
@@ -12,21 +12,10 @@ void Scene::init(std::string& path) {
 	int type;
 	for (int i = 0; i < obj_num; ++i) {
 		fscanf(config_file, "%d", &type);
-		std::cout << "type = " << type << std::endl;
 		assert(type == 0);
 		type_list.push_back(type);
 	}
 	float x, y, z;
-	for (int i = 0; i < obj_num; ++i) {
-		fscanf(config_file, "%f%f%f", &x, &y, &z);
-		scale.push_back(glm::vec3(x, y, z));
-		std::cout << x << ' ' << y << ' ' << z << std::endl;
-	}
-	for (int i = 0; i < obj_num; ++i) {
-		fscanf(config_file, "%f%f%f", &x, &y, &z);
-		center.push_back(glm::vec3(x, y, z));
-		std::cout << x << ' ' << y << ' ' << z << std::endl;
-	}
 	for(int i = 0; i < obj_num; ++i){
 		fscanf(config_file, "%f%f%f", &x, &y, &z);
 		color.push_back(glm::vec3(x, y, z));

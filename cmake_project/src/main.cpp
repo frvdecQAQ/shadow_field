@@ -43,7 +43,6 @@ GLfloat lastX = WIDTH / 2.0f, lastY = HEIGHT / 2.0f;
 bool firstMouse = true;
 
 const int LightNumber = 5;
-int lightingIndex;
 
 std::string objects[] = {"buddha", "maxplanck"};
 std::string gobjects[] = {"buddha", "maxplanck"};
@@ -66,9 +65,6 @@ int sphereNumber = 32;
 int shadowSampleNumber = 48 * 48;
 
 // Cubemap & Simple Light.
-bool drawCubemap = false;
-bool simpleLight = true;
-bool lastSimple = true;
 bool renderBar = true;
 
 // Camera.
@@ -353,44 +349,11 @@ void dataLoading(int argc, char** argv)
     std::string diffGeneal(argv[2]);
     assert(diffGeneal == "-d" || diffGeneal == "-g");
 
-    glm::vec3 hdrEffect[] = {
-       glm::vec3(1.2f, 1.2f, 1.2f),
-       glm::vec3(2.2f, 2.2f, 2.2f),
-       glm::vec3(1.2f, 1.2f, 1.2f),
-       glm::vec3(1.8f, 1.8f, 1.8f),
-       glm::vec3(1.8f, 1.8f, 1.8f)
-    };
-    glm::vec3 glossyEffect[] = {
-        glm::vec3(1.2f, 1.2f, 1.2f),
-        glm::vec3(2.2f, 2.2f, 2.2f),
-        glm::vec3(1.2f, 1.2f, 1.2f),
-        glm::vec3(1.8f, 1.8f, 1.8f),
-        glm::vec3(1.8f, 1.8f, 1.8f)
-    };
-
+    band = n;
     std::string path(argv[4]);
 
-    if (ptype == "-s")
-    {
-        std::string save_path = path + "/light_simple.dat";
-        now_light.init(save_path, glm::vec3(1.0f, 1.0f, 1.0f), glm::vec3(1.0f, 1.0f, 1.0f));
-    }
-    else
-    {
-        drawCubemap = true;
-        std::string read_path(argv[3]);
-        size_t beginIndex = read_path.rfind('/');
-        size_t endIndex = read_path.rfind('.');
-        std::string lighting_effect = read_path.substr(beginIndex + 1, endIndex - beginIndex - 1);
-        std::string save_path = path + "/light_" + lighting_effect + ".dat";
-        for (int i = 0; i < LightNumber; ++i) {
-            if (lightings[i]+"_probe" == lighting_effect) {
-                lightingIndex = i;
-                now_light.init(save_path, hdrEffect[i], glossyEffect[i]);
-                break;
-            }
-        }
-    }
+    now_light = Lighting(path+"/light_config.txt", band);
+    now_light.init();
 
     int tmp_cnt = 0;
     for (int i = 0; i < scene.obj_num; ++i) {
@@ -401,7 +364,7 @@ void dataLoading(int argc, char** argv)
         Object* tmp;
         if (scene.type_list[i] == 0)tmp = new DiffuseObject();
         else tmp = new GeneralObject();
-        tmp->init(obj_name, albedo, scene.scale[tmp_cnt]);
+        tmp->init(obj_name, albedo);
         tmp_cnt++;
         tmp->readFDiskbin(save_path);
         scene.obj_list.push_back(tmp);
@@ -471,8 +434,6 @@ bool check_brdf_process(std::string path, int band) {
 
 void dataProcessing(int argc, char** argv)
 {
-    // ./PRT.exe -s/-l -d/-g xxx.probe xxx.obj [band] [sample number] [sphereNumber] [shadowSampleNumber]
-
     std::string ptype(argv[1]);
     assert(ptype == "-s" || ptype == "-l");
 
@@ -480,38 +441,16 @@ void dataProcessing(int argc, char** argv)
     assert(diffGeneal == "-d" || diffGeneal == "-g");
 
     band = n;
-    if (argc > 6)sampleNumber = atoi(argv[6]);
-    if (argc > 7)sphereNumber = atoi(argv[7]);
-    if (argc > 8)shadowSampleNumber = atoi(argv[8]);
 
     std::string path(argv[4]);
     scene.init(path);
-    if (ptype == "-l") 
+
+    Lighting pattern(path+"/light_config.txt", band);
+    bool exist_flag = check_light_process(pattern.save_path, band);
+    if (!exist_flag)
     {
-        std::string read_path(argv[3]);
-        size_t beginIndex = read_path.rfind('/');
-        size_t endIndex = read_path.rfind('.');
-        std::string save_path = path + "/light_" + read_path.substr(beginIndex + 1, endIndex - beginIndex - 1) + ".dat";
-        std::cout << "light_save_path = " << save_path << std::endl;
-        bool exist_flag = check_light_process(save_path, band);
-        if (!exist_flag)
-        {
-            std::cout << "flag zero" << std::endl;
-            Lighting pattern(argv[3], PROBE, band);
-            pattern.process(sampleNumber, true);
-            pattern.write2Diskbin(save_path);
-        }
-    }
-    else
-    {
-        std::string save_path = path + "/light_simple.dat";
-        bool exist_flag = check_light_process(save_path, band);
-        if (!exist_flag)
-        {
-            Lighting simplePattern("", PROBE, band);
-            simplePattern.process(sampleNumber, false);
-            simplePattern.write2Diskbin(save_path);
-        }
+        pattern.process(sampleNumber);
+        pattern.write2Diskbin();
     }
 
     std::vector<std::string>file_name;
@@ -533,7 +472,7 @@ void dataProcessing(int argc, char** argv)
             Object* tmp;
             if (scene.type_list[tmp_cnt] == 1)tmp = new GeneralObject();
             else tmp = new DiffuseObject();
-            tmp->init(obj_path.c_str(), albedo, scene.scale[tmp_cnt]);
+            tmp->init(obj_path.c_str(), albedo);
             //std::cout << obj_path << std::endl;
             //std::cout << tmp->_indices.size() << std::endl;
             tmp->project2SH(transferType, band, sampleNumber, 1);
