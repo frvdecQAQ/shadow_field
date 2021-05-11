@@ -21,6 +21,7 @@ public:
     void process(int sampleNumber);
     void write2Diskbin();
     void querySRF(glm::vec3 p, glm::vec3* coef);
+    void rotate(const glm::mat4& m);
 
     int band() { return _band; }
 

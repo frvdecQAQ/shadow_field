@@ -43,25 +43,6 @@ std::vector<std::string> gpu_split(const std::string &s, char delim) {
     gpu_split(s, delim, std::back_inserter(elems));
     return elems;
 }
-/*
-static std::vector<TensorEntry> readGamma_ascii(int n)
-{
-    std::vector<TensorEntry> sparsegamma;
-    std::string line;
-    std::ifstream sparsefile("../gamma/sparse" + std::to_string(n));
-    TensorEntry entry;
-    while(getline(sparsefile, line))
-    {
-        std::vector<std::string> tokens = split(line.substr(1, line.length() - 3), ',');
-        entry.a = std::stoi(tokens[0]);
-        entry.b = std::stoi(tokens[1]);
-        entry.c = std::stoi(tokens[2]);
-        entry.val = std::stof(tokens[3]);
-        sparsegamma.push_back(entry);
-    }
-    sparsefile.close();
-    return sparsegamma;
-}*/
 
 static std::vector<TensorEntry> readGamma(int n)
 {
@@ -167,17 +148,25 @@ __global__ void cu_sh1_fs5(float* SH, cufftComplex* FS)
 {
     const int i = blockIdx.x * blockDim.x + threadIdx.x;
     const int shbase = i*n*n;
-    const int fsbase = i*N*N;
+    const int fsbase = i*N5*N5;
     // copy to register
     float SHreg[n*n];
-//    cufftComplex FSreg[N*N];
     memcpy(SHreg, SH+shbase, n*n*sizeof(float));
-//    memset(FSreg, 0, N*N*sizeof(cufftComplex));
     // execute
     #include "generated/sh1_fs5.cu"
+}
+
+__global__ void cu_fs2sh(cufftComplex* FS, float* SH)
+{
+    const int i = blockIdx.x * blockDim.x + threadIdx.x;
+    const int shbase = i*n*n;
+    const int fsbase = i*N2*N2;
+    // copy to register
+    float SHreg[n*n];
+    // execute
+    #include "generated/fs2sh.cu"
     // copy back to global memory
-//   	for (int j=0; j<N*N; ++j)
-//   		FS[j+i*N*N] = FSreg[j];
+    memcpy(SH+shbase, SHreg, n*n*sizeof(float));
 }
 
 // convert from coefficients of Fourier Series to SH vector
@@ -185,17 +174,23 @@ __global__ void cu_fs5_sh1(cufftComplex* FS, float* SH)
 {
     const int i = blockIdx.x * blockDim.x + threadIdx.x;
     const int shbase = i*n*n;
-    const int fsbase = i*N*N;
+    const int fsbase = i*N5*N5;
     // copy to register
     float SHreg[n*n];
-//    cufftComplex FSreg[N*N];
-//    memset(SHreg, 0, n*n*sizeof(float));
-//   	for (int j=0; j<N*N; ++j)
-//   		FSreg[j] = FS[j+i*N*N];
-    // execute
     #include "generated/fs5_sh1.cu"
     // copy back to global memory
     memcpy(SH+shbase, SHreg, n*n*sizeof(float));
+}
+
+__global__ void cu_sh2fs(float* SH, cufftComplex* FS)
+{
+    const int i = blockIdx.x * blockDim.x + threadIdx.x;
+    const int shbase = i*n*n;
+    const int fsbase = i*N2*N2;
+    // copy to register
+    float SHreg[n*n];
+    memcpy(SHreg, SH+shbase, n*n*sizeof(float));
+    #include "generated/sh2fs.cu"
 }
 
 // element-wise multiplication B_i *= A_i
@@ -214,80 +209,35 @@ void shprod_many(float* A, float* B, float* C, float* D, float* E, float* F,
             cufftComplex* pool0, cufftComplex* pool1, cufftComplex* pool2,
             int multi_product_num, cufftHandle plan)
 {
-//	auto t0 = std::chrono::system_clock::now();
-//	auto t1 = std::chrono::system_clock::now();
-//	double dt = 0;
-//	double dtsh = 0;
-//#define STARTTIME {cudaDeviceSynchronize(); t0 = std::chrono::system_clock::now();}
-//#define ENDTIME {cudaDeviceSynchronize(); t1 = std::chrono::system_clock::now(); dt += std::chrono::duration<double>(t1-t0).count()*1000;}
-//#define ENDTIMESH {cudaDeviceSynchronize(); t1 = std::chrono::system_clock::now(); dtsh += std::chrono::duration<double>(t1-t0).count()*1000;}
 	const int blocksize = 32;
 	assert(multi_product_num%blocksize == 0);
-	// mem alloc
-	//cufftComplex *pool0, *pool1, *pool2;
-	//cudaMalloc((void**)&pool0, sizeof(cufftComplex)*N*N*num);
-	//cudaMalloc((void**)&pool1, sizeof(cufftComplex)*N*N*num);
-	//cudaMalloc((void**)&pool2, sizeof(cufftComplex)*N*N*num);
-	// plan DFT
-	//cufftHandle plan;
-	//int sizes[2] = {N,N};
-	//cufftPlanMany(&plan, 2, sizes, NULL, 1, N*N, NULL, 1, N*N, CUFFT_C2C, multi_product_num);
-    //console.time("exclude_planning " + std::to_string(num));
-
-//STARTTIME
-	// DFT on A
 	cu_sh1_fs5<<<multi_product_num/blocksize, blocksize>>>(A, pool0);
-//ENDTIMESH
 
-//STARTTIME
 	cufftExecC2C(plan, pool0, pool1, CUFFT_FORWARD);
-//ENDTIME
 
-//STARTTIME
-	// DFT on B & multiply
 	cu_sh1_fs5<<<multi_product_num/blocksize, blocksize>>>(B, pool0);
-//ENDTIMESH
 
-//STARTTIME
 	cufftExecC2C(plan, pool0, pool2, CUFFT_FORWARD);
-	multiply<<<multi_product_num*N*N/blocksize, blocksize>>>(pool1, pool2);
-//ENDTIME
+	multiply<<<multi_product_num*N5*N5/blocksize, blocksize>>>(pool1, pool2);
 
-//STARTTIME
-	// DFT on C & multiply
 	cu_sh1_fs5<<<multi_product_num/blocksize, blocksize>>>(C, pool0);
-//ENDTIMESH
 
-//STARTTIME
 	cufftExecC2C(plan, pool0, pool1, CUFFT_FORWARD);
-	multiply<<<multi_product_num*N*N/blocksize, blocksize>>>(pool1, pool2);
-//ENDTIME
+	multiply<<<multi_product_num*N5*N5/blocksize, blocksize>>>(pool1, pool2);
 
-//STARTTIME
-	// DFT on D & multiply
 	cu_sh1_fs5<<<multi_product_num/blocksize, blocksize>>>(D, pool0);
-//ENDTIMESH
 
-//STARTTIME
 	cufftExecC2C(plan, pool0, pool1, CUFFT_FORWARD);
-	multiply<<<multi_product_num*N*N/blocksize, blocksize>>>(pool1, pool2);
-//ENDTIME
+	multiply<<<multi_product_num*N5*N5/blocksize, blocksize>>>(pool1, pool2);
 
-//STARTTIME
-	// DFT on E & multiply
 	cu_sh1_fs5<<<multi_product_num/blocksize, blocksize>>>(E, pool0);
-//ENDTIMESH
 
-//STARTTIME
 	cufftExecC2C(plan, pool0, pool1, CUFFT_FORWARD);
-	multiply<<<multi_product_num*N*N/blocksize, blocksize>>>(pool1, pool2);
+	multiply<<<multi_product_num*N5*N5/blocksize, blocksize>>>(pool1, pool2);
 	// IDFT & convert backs to SH
 	cufftExecC2C(plan, pool2, pool1, CUFFT_INVERSE);
-//ENDTIME
-//	double fftdt = dt;
-//STARTTIME
+
 	cu_fs5_sh1<<<multi_product_num/blocksize, blocksize>>>(pool1, F);
-//ENDTIME
 	// synchronize
 	cudaDeviceSynchronize();
 	//console.log("sh2fsexec:", dtsh);
@@ -358,94 +308,6 @@ __global__ void shprod_conventional_precise(float* A, float* B, float* C, float*
     memcpy(F+base, Areg, n*n*sizeof(float));
 }
 
-
-/*void validate_sh1_fs5(float* deviceA)
-{
-    cufftComplex *pool0;
-    cudaMalloc((void**)&pool0, sizeof(cufftComplex)*N*N*(num+1));
-    float* B;
-    cudaMalloc((void**)&B, sizeof(float)*n*n*num);
-    // call
-    const int blocksize = 32;
-    const int extrasize = ((4*n-4)*N+(4*n-4)) - ((n-1)*N+(n-1));
-    cu_sh1_fs5<<<num/blocksize, blocksize>>>(deviceA, pool0+extrasize);
-    cudaMemset(pool0, 0, extrasize * sizeof(cufftComplex));
-    gpuErrchk(cudaDeviceSynchronize());
-    cu_fs5_sh1<<<num/blocksize, blocksize>>>(pool0, B);
-    gpuErrchk(cudaDeviceSynchronize());
-    // validate
-    float* p = new float[n*n];
-    cudaMemcpy(p, deviceA, n*n*sizeof(float), cudaMemcpyDeviceToHost);
-    for (int i=0; i<n*n; ++i)
-        std::cout << p[i] << " ";
-    puts("");
-    cudaMemcpy(p, B, n*n*sizeof(float), cudaMemcpyDeviceToHost);
-    for (int i=0; i<n*n; ++i)
-        std::cout << p[i]*N*N << " ";
-    puts("");
-}*/
-
-
-/*void compute_reference(float* A, float* B, float* C, float* D, float* E, float* res)
-{
-    // SH<3*n-2> A1,B1,C1,D1,E1;
-    // memcpy(A1.a, A, n*n*sizeof(float));
-    // memcpy(B1.a, B, n*n*sizeof(float));
-    // memcpy(C1.a, C, n*n*sizeof(float));
-    // memcpy(D1.a, D, n*n*sizeof(float));
-    // memcpy(E1.a, E, n*n*sizeof(float));
-    // SH<3*n-2> ref = A1*B1*C1*D1*E1;
-    // memcpy(res, ref.a, n*n*sizeof(float));
-    // return;
-
-    // compute reference on CPU, un-optimized
-    // convert them all to (3n-2) order
-    const int n1 = 3*n-2; /////// TODO
-    float A1[n1*n1], B1[n1*n1], C1[n1*n1], D1[n1*n1], E1[n1*n1];
-    float M1[n1*n1], M2[n1*n1], M3[n1*n1];
-    memset(A1, 0, n1*n1*sizeof(float));
-    memset(B1, 0, n1*n1*sizeof(float));
-    memset(C1, 0, n1*n1*sizeof(float));
-    memset(D1, 0, n1*n1*sizeof(float));
-    memset(E1, 0, n1*n1*sizeof(float));
-    memset(M1, 0, n1*n1*sizeof(float));
-    memset(M2, 0, n1*n1*sizeof(float));
-    memset(M3, 0, n1*n1*sizeof(float));
-    memcpy(A1, A, n*n*sizeof(float));
-    memcpy(B1, B, n*n*sizeof(float));
-    memcpy(C1, C, n*n*sizeof(float));
-    memcpy(D1, D, n*n*sizeof(float));
-    memcpy(E1, E, n*n*sizeof(float));
-    // M2 = A1 * B1
-    for (auto e: SparseGamma3)
-        M2[e.c] += e.val * A1[e.a] * B1[e.b];
-    // M1 = M1 * C1
-    for (auto e: SparseGamma3)
-        M1[e.c] += e.val * M2[e.a] * C1[e.b];
-    // M2 = D1 * E1
-    memset(M2, 0, n1*n1*sizeof(float));
-    for (auto e: SparseGamma3)
-        M2[e.c] += e.val * D1[e.a] * E1[e.b];
-    // M3 = M1 * M2 (order matters!)
-    for (auto e: SparseGamma3)
-        M3[e.c] += e.val * M1[e.a] * M2[e.b];
-    // copy result
-    memcpy(res, M3, n*n*sizeof(float));
-}*/
-
-/* return relative error of kth result
-float validate_err(float* deviceA, float* deviceB, float* deviceC, float* deviceD, float* deviceE, float* deviceF, int k)
-{blocksize
-    float sum = 0;
-    const int n_sample = 10;
-    for (int i=0; i<n_sample; ++i)
-        sum += validate_err(deviceA, deviceB, deviceC, deviceD, deviceE, deviceF, rand()%num);
-    float err_avg = sum / n_sample;
-    console.log("err:", err_avg);
-}*/
-
-
-
 void multi_product(float *A, float *B, float* C, float *D, float *E, float *F,
                     int multi_product_num, int type)
 {
@@ -455,4 +317,30 @@ void multi_product(float *A, float *B, float* C, float *D, float *E, float *F,
 
     if(type == 0)shprod_conventional<<<grid, block>>>(A,B,C,D,E,F);
     else if(type == 1)shprod_conventional_precise<<<grid, block>>>(A,B,C,D,E,F);
+}
+
+void shprod_many(float* A, float* B, float* C, 
+                cufftComplex *pool0, cufftComplex *pool1, cufftComplex *pool2,
+                int num, cufftHandle plan)
+{
+	const int blocksize = 32;
+	assert(num%blocksize == 0);
+
+    cudaMemset(pool0, 0, sizeof(cufftComplex)*N2*N2*num);
+
+	cu_sh2fs<<<num/blocksize, blocksize>>>(A, pool0);
+    cufftExecC2C(plan, pool0, pool1, CUFFT_FORWARD);
+
+    cu_sh2fs<<<num/blocksize, blocksize>>>(B, pool0);
+	//cudaDeviceSynchronize();
+
+	cufftExecC2C(plan, pool0, pool2, CUFFT_FORWARD);
+	// element-wise multiply
+	multiply<<<num*N2*N2/blocksize, blocksize>>>(pool1, pool2);
+	// IDFT & convert backs to SH
+	cufftExecC2C(plan, pool2, pool1, CUFFT_INVERSE);
+	//cudaDeviceSynchronize();
+
+	cu_fs2sh<<<num/blocksize, blocksize>>>(pool1, C);
+	//cudaDeviceSynchronize();
 }

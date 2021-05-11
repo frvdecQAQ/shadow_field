@@ -4,6 +4,7 @@ void Scene::init(std::string& path) {
 	FILE* config_file = fopen((path+"/object_config.txt").c_str(), "r");
 	assert(config_file != NULL);
 	fscanf(config_file, "%d", &obj_num);
+	assert(obj_num >= 2 && obj_num <= 5);
 	char* obj_name = new char[256];
 	for (int i = 0; i < obj_num; ++i) {
 		fscanf(config_file, "%s", obj_name);
@@ -148,7 +149,7 @@ bool Scene::change(glm::vec3& c_pos, glm::vec3& c_dir) {
 	rotateMatrix[0][2] = -std::sin(M_PI / 180);
 	rotateMatrix[2][0] = std::sin(M_PI / 180);
 	rotateMatrix[2][2] = std::cos(M_PI / 180);
-	DiffuseObject* obj_now = dynamic_cast<DiffuseObject*>(obj_list[1]);
+	DiffuseObject* obj_now = dynamic_cast<DiffuseObject*>(obj_list[2]);
 	obj_now->transform(rotateMatrix);
 	return true;
 }

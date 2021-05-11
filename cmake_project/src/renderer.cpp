@@ -128,19 +128,37 @@ void Renderer::Setup(Scene* scene, Lighting* light){
     cudaMalloc(&gpu_data[0], sizeof(float)*batch_size*n*n);
     cudaMalloc(&gpu_data[1], sizeof(float)*batch_size*n*n);
     cudaMalloc(&gpu_data[2], sizeof(float)*batch_size*n*n);
-    cudaMalloc(&gpu_data[3], sizeof(float)*batch_size*n*n);
-    cudaMalloc(&gpu_data[4], sizeof(float)*batch_size*n*n);
-    cudaMalloc(&gpu_data[5], sizeof(float)*batch_size*n*n);
-    cudaMalloc((void**)&gpu_pool0, sizeof(cufftComplex)*N*N*batch_size);
-    cudaMalloc((void**)&gpu_pool1, sizeof(cufftComplex)*N*N*batch_size);
-    cudaMalloc((void**)&gpu_pool2, sizeof(cufftComplex)*N*N*batch_size);
-    for(int i = 0; i < 6; ++i){
+
+    if(scene->obj_num > 2)cudaMalloc(&gpu_data[3], sizeof(float)*batch_size*n*n);
+    if(scene->obj_num > 3)cudaMalloc(&gpu_data[4], sizeof(float)*batch_size*n*n);
+    if(scene->obj_num > 4)cudaMalloc(&gpu_data[5], sizeof(float)*batch_size*n*n);
+
+    for(int i = 0; i < scene->obj_num+1; ++i){
         cpu_data[i] = new float[multi_product_num*n*n];
         for(int j = 0; j < multi_product_num*n*n; ++j)cpu_data[i][j] = 0.0f;
     }
 
-    int sizes[2] = {N,N};
-	cufftPlanMany(&plan, 2, sizes, NULL, 1, N*N, NULL, 1, N*N, CUFFT_C2C, batch_size);
+    if(approx)
+    {
+        cudaMalloc((void**)&gpu_pool0, sizeof(cufftComplex)*N2*N2*batch_size);
+        cudaMalloc((void**)&gpu_pool1, sizeof(cufftComplex)*N2*N2*batch_size);
+        cudaMalloc((void**)&gpu_pool2, sizeof(cufftComplex)*N2*N2*batch_size);
+
+        int sizes[2] = {N2,N2};
+        cufftPlanMany(&plan, 2, sizes, NULL, 1, N2*N2, NULL, 1, N2*N2, CUFFT_C2C, batch_size);
+    }
+    else
+    {
+        if(scene->obj_num == 5)
+        {
+            cudaMalloc((void**)&gpu_pool0, sizeof(cufftComplex)*N5*N5*batch_size);
+            cudaMalloc((void**)&gpu_pool1, sizeof(cufftComplex)*N5*N5*batch_size);
+            cudaMalloc((void**)&gpu_pool2, sizeof(cufftComplex)*N5*N5*batch_size);
+
+            int sizes[2] = {N5,N5};
+            cufftPlanMany(&plan, 2, sizes, NULL, 1, N5*N5, NULL, 1, N5*N5, CUFFT_C2C, batch_size);
+        }
+    }
 }
 
 void Renderer::SetupColorBuffer(int type, glm::vec3 viewDir, bool diffuse)
@@ -284,11 +302,11 @@ void Renderer::setupBuffer(int type, glm::vec3 viewDir)
                     _scene->obj_list[query_id]->queryOOF(now_point, cpu_data[query_id]+base_index);
                 }
             }
-            for(int query_id = sz; query_id < 5; ++query_id)
+            /*for(int query_id = sz; query_id < 5; ++query_id)
             {
                 cpu_data[query_id][base_index] = 2.0f*sqrt(M_PI);
                 for(int j = 1; j < band2; ++j)cpu_data[query_id][base_index+j] = 0.0f;
-            }
+            }*/
             base_index += band2;
         }
     }
@@ -300,15 +318,38 @@ void Renderer::setupBuffer(int type, glm::vec3 viewDir)
     int loop_max = multi_product_num/batch_size;
     for(int i = 0; i < loop_max; ++i)
     {
-        for(int j = 0; j < 5; ++j)
+        if(!approx)
         {
-            cudaMemcpy(gpu_data[j], cpu_data[j]+i*batch_size*band2, sizeof(float)*batch_size*band2, cudaMemcpyHostToDevice);
+            for(int j = 0; j < _scene->obj_num; ++j)
+            {
+                cudaMemcpy(gpu_data[j], cpu_data[j]+i*batch_size*band2, sizeof(float)*batch_size*band2, cudaMemcpyHostToDevice);
+            }
+            if(_scene->obj_num == 5)
+            {
+                multi_product(gpu_data[0], gpu_data[1], gpu_data[2], gpu_data[3], gpu_data[4], gpu_data[5],
+                    batch_size, 0);
+                //shprod_many(gpu_data[0], gpu_data[1], gpu_data[2], gpu_data[3], gpu_data[4], gpu_data[5], 
+                //        gpu_pool0, gpu_pool1, gpu_pool2, batch_size, plan);
+            }
+            cudaMemcpy(cpu_data[_scene->obj_num]+i*batch_size*band2, gpu_data[_scene->obj_num], 
+                    sizeof(float)*batch_size*band2, cudaMemcpyDeviceToHost);
         }
-        //multi_product(gpu_data[0], gpu_data[1], gpu_data[2], gpu_data[3], gpu_data[4], gpu_data[5],
-        //    multi_product_num, 1);
-        shprod_many(gpu_data[0], gpu_data[1], gpu_data[2], gpu_data[3], gpu_data[4], gpu_data[5], 
-                gpu_pool0, gpu_pool1, gpu_pool2, batch_size, plan);
-        cudaMemcpy(cpu_data[5]+i*batch_size*band2, gpu_data[5], sizeof(float)*batch_size*band2, cudaMemcpyDeviceToHost);
+        else
+        {
+            cudaMemcpy(gpu_data[0], cpu_data[0]+i*batch_size*band2, sizeof(float)*batch_size*band2, cudaMemcpyHostToDevice);
+            cudaMemcpy(gpu_data[1], cpu_data[1]+i*batch_size*band2, sizeof(float)*batch_size*band2, cudaMemcpyHostToDevice);
+            shprod_many(gpu_data[0], gpu_data[1], gpu_data[2], gpu_pool0, gpu_pool1, gpu_pool2,
+                    batch_size, plan);
+            for(int j = 2; j < _scene->obj_num; ++j)
+            {
+                cudaMemcpy(gpu_data[0], cpu_data[j]+i*batch_size*band2, sizeof(float)*batch_size*band2, cudaMemcpyHostToDevice);
+                shprod_many(gpu_data[0], gpu_data[j], gpu_data[j+1], gpu_pool0, gpu_pool1, gpu_pool2,
+                    batch_size, plan);
+            }
+            cudaMemcpy(cpu_data[_scene->obj_num]+i*batch_size*band2, gpu_data[_scene->obj_num], 
+                    sizeof(float)*batch_size*band2, cudaMemcpyDeviceToHost);
+
+        }
         /*for(int j = 0; j < batch_size; ++j)
         {
             int offset = i*batch_size*band2+j*band2;
@@ -357,15 +398,15 @@ void Renderer::setupBuffer(int type, glm::vec3 viewDir)
             //compute shading
             for (int j = 0; j < band2; j++)
             {
-                float& multi_product_result = cpu_data[5][base_index+j];
+                float& multi_product_result = cpu_data[sz][base_index+j];
                 if(_lighting->light_type == 0 || _lighting->light_type == 1)
                 {
-                    /*cr += _lighting->_Vcoeffs[0](j) * multi_product_result;
+                    cr += _lighting->_Vcoeffs[0](j) * multi_product_result;
                     cg += _lighting->_Vcoeffs[1](j) * multi_product_result;
-                    cb += _lighting->_Vcoeffs[2](j) * multi_product_result;*/
-                    cr += obj_now->light_coef[i*band2*3+j]*multi_product_result;
+                    cb += _lighting->_Vcoeffs[2](j) * multi_product_result;
+                    /*cr += obj_now->light_coef[i*band2*3+j]*multi_product_result;
                     cg += obj_now->light_coef[i*band2*3+band2+j]*multi_product_result;
-                    cb += obj_now->light_coef[i*band2*3+band2*2+j]*multi_product_result;
+                    cb += obj_now->light_coef[i*band2*3+band2*2+j]*multi_product_result;*/
                 }
                 else
                 {

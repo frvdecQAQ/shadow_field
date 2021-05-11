@@ -72,8 +72,8 @@ int shadowSampleNumber = 48 * 48;
 bool renderBar = true;
 
 // Camera.
-float camera_dis = 4.3f;
-glm::vec3 camera_pos(-0.568030f, 0.545272f, -0.328069f);
+float camera_dis = 1.1f;
+glm::vec3 camera_pos(0.717031, 0.397814, -0.234986);
 glm::vec3 last_camera_pos(0.0f, 0.0f, 1.0f);
 glm::vec3 camera_dir(0.0f, 0.0f, 0.0f);
 glm::vec3 camera_up(0.0f, 1.0f, 0.0f);
@@ -144,22 +144,19 @@ int main(int argc, char** argv){
     //CPU init
     SH<n>::init();
     cpu_initGamma();
-    float *A, *B, *C, *D, *E, *F;
+    float *A, *B, *C;
     float *IA;
     cufftComplex *pool0, *pool1, *pool2;
     int num = 1024;
-    cudaMalloc((void**)&pool0, sizeof(cufftComplex)*N*N*num);
-    cudaMalloc((void**)&pool1, sizeof(cufftComplex)*N*N*num);
-    cudaMalloc((void**)&pool2, sizeof(cufftComplex)*N*N*num);
+    cudaMalloc((void**)&pool0, sizeof(cufftComplex)*N2*N2*num);
+    cudaMalloc((void**)&pool1, sizeof(cufftComplex)*N2*N2*num);
+    cudaMalloc((void**)&pool2, sizeof(cufftComplex)*N2*N2*num);
     cudaMalloc(&A, sizeof(float)*n*n*num);
     cudaMalloc(&B, sizeof(float)*n*n*num);
     cudaMalloc(&C, sizeof(float)*n*n*num);
-    cudaMalloc(&D, sizeof(float)*n*n*num);
-    cudaMalloc(&E, sizeof(float)*n*n*num);
-    cudaMalloc(&F, sizeof(float)*n*n*num);
     cufftHandle plan;
-    int sizes[2] = {N,N};
-	cufftPlanMany(&plan, 2, sizes, NULL, 1, N*N, NULL, 1, N*N, CUFFT_C2C, num);
+    int sizes[2] = {N2,N2};
+	cufftPlanMany(&plan, 2, sizes, NULL, 1, N2*N2, NULL, 1, N2*N2, CUFFT_C2C, num);
     IA = new float[n*n*num];
     for(int i = 0; i < n*n*num; ++i){
         IA[i] = ((i&1)?-1.0f:1.0f);
@@ -167,42 +164,32 @@ int main(int argc, char** argv){
     cudaMemcpy(A, IA, num*n*n*sizeof(float), cudaMemcpyHostToDevice);
     cudaMemcpy(B, IA, num*n*n*sizeof(float), cudaMemcpyHostToDevice);
     cudaMemcpy(C, IA, num*n*n*sizeof(float), cudaMemcpyHostToDevice);
-    cudaMemcpy(D, IA, num*n*n*sizeof(float), cudaMemcpyHostToDevice);
-    cudaMemcpy(E, IA, num*n*n*sizeof(float), cudaMemcpyHostToDevice);
-    shprod_many(A, B, C, D, E, F, pool0, pool1, pool2, num, plan);
-    cudaMemcpy(IA, F, num*n*n*sizeof(float), cudaMemcpyDeviceToHost);
-    std::cout << IA[0] << std::endl;
-    multi_product(A, B, C, D, E, F, num, 0);
-    cudaMemcpy(IA, F, num*n*n*sizeof(float), cudaMemcpyDeviceToHost);
-    std::cout << IA[0] << std::endl;
-    multi_product(A, B, C, D, E, F, num, 1);
-    cudaMemcpy(IA, F, num*n*n*sizeof(float), cudaMemcpyDeviceToHost);
-    std::cout << IA[0] << std::endl;
-    delete[] IA;
 
-    SH<n> sh1, sh2, sh3, sh4, sh5;
+    SH<n> sh1, sh2;
     for(int l = 0; l < n; ++l){
         for(int m = -l; m <= l; ++m){
             int index = l*(l+1)+m;
             sh1.at(l, m) = ((index&1)?-1.0f:1.0f);
             sh2.at(l, m) = ((index&1)?-1.0f:1.0f);
-            sh3.at(l, m) = ((index&1)?-1.0f:1.0f);
-            sh4.at(l, m) = ((index&1)?-1.0f:1.0f);
-            sh5.at(l, m) = ((index&1)?-1.0f:1.0f);
         }
     }
 
-    SH<n> sh6 = precise(sh1,sh2,sh3,sh4,sh5);
 
-    std::cout << sh6.at(0, 0) << std::endl;
+    SH<n> sh3 = sh1*sh2;
 
-    SH<n> sh7 = fs2sh(fastmul(sh2fs(sh1),sh2fs(sh2),sh2fs(sh3),sh2fs(sh4),sh2fs(sh5)));
+    for(int l = 0; l < n; ++l){
+        for(int m = -l; m <= l; ++m){
+            std::cout << sh3.at(l, m) << ' ';
+        }
+    }std::cout << std::endl;
 
-    std::cout << sh7.at(0, 0) << std::endl;
+    shprod_many(A, B, C, pool0, pool1, pool2, num, plan);
+    cudaMemcpy(IA, C, num*n*n*sizeof(float), cudaMemcpyDeviceToHost);
 
-    SH<n> sh8 = sh1*sh2*sh3*sh4*sh5;
-
-    std::cout << sh8.at(0, 0) << std::endl;
+    for(int i = 0; i < n*n; ++i){
+        std::cout << IA[i] << ' ';
+    }std::cout << std::endl;
+    delete[] IA;
 
     releaseGamma();
     return 0;*/

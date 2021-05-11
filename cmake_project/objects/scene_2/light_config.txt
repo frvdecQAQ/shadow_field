@@ -1,2 +1,1 @@
-2
-objects/scene_2/area_light.obj
+0

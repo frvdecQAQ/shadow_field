@@ -93,6 +93,7 @@ private:
     cufftHandle plan;
 
     const int batch_size = 4096;
+    const bool approx = false;
 
     void objDraw();
     //void setupDiffuseBuffer(int type);

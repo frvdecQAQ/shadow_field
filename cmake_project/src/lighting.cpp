@@ -494,3 +494,7 @@ void Lighting::querySRF(glm::vec3 p, glm::vec3* coef) {
     }
     for (int i = 0; i < band2; ++i)coef[i] /= sum;
 }
+
+void Lighting::rotate(const glm::mat4& m){
+    
+}
