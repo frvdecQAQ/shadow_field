@@ -168,28 +168,28 @@ __global__ void cu_sh1_fs4(float* SH, cufftComplex* FS)
     #include "generated/sh1_fs4.cu"
 }
 
-__global__ void cu_fs4_sh1(cufftComplex* FS, float* SH)
+__global__ void cu_sh1_fs3(float* SH, cufftComplex* FS)
 {
     const int i = blockIdx.x * blockDim.x + threadIdx.x;
     const int shbase = i*n*n;
-    const int fsbase = i*N4*N4;
+    const int fsbase = i*N3*N3;
+    // copy to register
     float SHreg[n*n];
-    #include "generated/fs4_sh1.cu"
-    // copy back to global memory
-    memcpy(SH+shbase, SHreg, n*n*sizeof(float));
+    //cufftComplex FSreg[N*N];
+    memcpy(SHreg, SH+shbase, n*n*sizeof(float));
+    // execute
+    #include "generated/sh1_fs3.cu"
 }
 
-__global__ void cu_fs2sh(cufftComplex* FS, float* SH)
+__global__ void cu_sh2fs(float* SH, cufftComplex* FS)
 {
     const int i = blockIdx.x * blockDim.x + threadIdx.x;
     const int shbase = i*n*n;
     const int fsbase = i*N2*N2;
     // copy to register
     float SHreg[n*n];
-    // execute
-    #include "generated/fs2sh.cu"
-    // copy back to global memory
-    memcpy(SH+shbase, SHreg, n*n*sizeof(float));
+    memcpy(SHreg, SH+shbase, n*n*sizeof(float));
+    #include "generated/sh2fs.cu"
 }
 
 // convert from coefficients of Fourier Series to SH vector
@@ -205,15 +205,41 @@ __global__ void cu_fs5_sh1(cufftComplex* FS, float* SH)
     memcpy(SH+shbase, SHreg, n*n*sizeof(float));
 }
 
-__global__ void cu_sh2fs(float* SH, cufftComplex* FS)
+__global__ void cu_fs4_sh1(cufftComplex* FS, float* SH)
+{
+    const int i = blockIdx.x * blockDim.x + threadIdx.x;
+    const int shbase = i*n*n;
+    const int fsbase = i*N4*N4;
+    float SHreg[n*n];
+    #include "generated/fs4_sh1.cu"
+    // copy back to global memory
+    memcpy(SH+shbase, SHreg, n*n*sizeof(float));
+}
+
+__global__ void cu_fs3_sh1(cufftComplex* FS, float* SH)
+{
+    const int i = blockIdx.x * blockDim.x + threadIdx.x;
+    const int shbase = i*n*n;
+    const int fsbase = i*N3*N3;
+    // copy to register
+    float SHreg[n*n];
+    // execute
+    #include "generated/fs3_sh1.cu"
+    // copy back to global memory
+    memcpy(SH+shbase, SHreg, n*n*sizeof(float));
+}
+
+__global__ void cu_fs2sh(cufftComplex* FS, float* SH)
 {
     const int i = blockIdx.x * blockDim.x + threadIdx.x;
     const int shbase = i*n*n;
     const int fsbase = i*N2*N2;
     // copy to register
     float SHreg[n*n];
-    memcpy(SHreg, SH+shbase, n*n*sizeof(float));
-    #include "generated/sh2fs.cu"
+    // execute
+    #include "generated/fs2sh.cu"
+    // copy back to global memory
+    memcpy(SH+shbase, SHreg, n*n*sizeof(float));
 }
 
 // element-wise multiplication B_i *= A_i
@@ -375,6 +401,39 @@ void shprod_many(float* A, float* B, float* C, float* D, float* E,
 	// synchronize
 	cudaDeviceSynchronize();
 }
+
+void shprod_many(float* A, float* B, float* C, float* D,
+    cufftComplex *pool0, cufftComplex *pool1, cufftComplex *pool2,
+    int num, cufftHandle plan)
+{
+	const int blocksize = 32;
+	assert(num%blocksize == 0);
+	// plan DFT
+	// DFT on A
+	cu_sh1_fs3<<<num/blocksize, blocksize>>>(A, pool0);
+
+    cufftExecC2C(plan, pool0, pool1, CUFFT_FORWARD);
+
+	cu_sh1_fs3<<<num/blocksize, blocksize>>>(B, pool0);
+
+	cufftExecC2C(plan, pool0, pool2, CUFFT_FORWARD);
+	// element-wise multiply
+	multiply<<<num*N3*N3/blocksize, blocksize>>>(pool1, pool2);
+
+	// DFT on C
+	cu_sh1_fs3<<<num/blocksize, blocksize>>>(C, pool0);
+
+	cufftExecC2C(plan, pool0, pool1, CUFFT_FORWARD);
+	// element-wise multiply
+	multiply<<<num*N3*N3/blocksize, blocksize>>>(pool1, pool2);
+	// IDFT & convert backs to SH
+	cufftExecC2C(plan, pool2, pool1, CUFFT_INVERSE);
+
+	cu_fs3_sh1<<<num/blocksize, blocksize>>>(pool1, D);
+	// synchronize
+	cudaDeviceSynchronize();
+}
+
 
 void shprod_many(float* A, float* B, float* C, 
                 cufftComplex *pool0, cufftComplex *pool1, cufftComplex *pool2,

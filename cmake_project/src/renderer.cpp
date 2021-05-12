@@ -167,6 +167,14 @@ void Renderer::Setup(Scene* scene, Lighting* light){
             int sizes[2] = {N4,N4};
             cufftPlanMany(&plan, 2, sizes, NULL, 1, N4*N4, NULL, 1, N4*N4, CUFFT_C2C, batch_size);
         }
+        else if(scene->obj_num == 3){
+            cudaMalloc((void**)&gpu_pool0, sizeof(cufftComplex)*N3*N3*batch_size);
+            cudaMalloc((void**)&gpu_pool1, sizeof(cufftComplex)*N3*N3*batch_size);
+            cudaMalloc((void**)&gpu_pool2, sizeof(cufftComplex)*N3*N3*batch_size);
+
+            int sizes[2] = {N3,N3};
+            cufftPlanMany(&plan, 2, sizes, NULL, 1, N3*N3, NULL, 1, N3*N3, CUFFT_C2C, batch_size);
+        }
     }
 }
 
@@ -343,6 +351,11 @@ void Renderer::setupBuffer(int type, glm::vec3 viewDir)
             else if(_scene->obj_num == 4)
             {
                 shprod_many(gpu_data[0], gpu_data[1], gpu_data[2], gpu_data[3], gpu_data[4],
+                    gpu_pool0, gpu_pool1, gpu_pool2, batch_size, plan);
+            }
+            else if(_scene->obj_num == 3)
+            {
+                shprod_many(gpu_data[0], gpu_data[1], gpu_data[2], gpu_data[3],
                     gpu_pool0, gpu_pool1, gpu_pool2, batch_size, plan);
             }
             cudaMemcpy(cpu_data[_scene->obj_num]+i*batch_size*band2, gpu_data[_scene->obj_num], 

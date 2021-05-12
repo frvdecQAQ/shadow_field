@@ -144,19 +144,20 @@ int main(int argc, char** argv){
     //CPU init
     SH<n>::init();
     cpu_initGamma();
-    float *A, *B, *C;
+    float *A, *B, *C, *D;
     float *IA;
     cufftComplex *pool0, *pool1, *pool2;
     int num = 1024;
-    cudaMalloc((void**)&pool0, sizeof(cufftComplex)*N2*N2*num);
-    cudaMalloc((void**)&pool1, sizeof(cufftComplex)*N2*N2*num);
-    cudaMalloc((void**)&pool2, sizeof(cufftComplex)*N2*N2*num);
+    cudaMalloc((void**)&pool0, sizeof(cufftComplex)*N3*N3*num);
+    cudaMalloc((void**)&pool1, sizeof(cufftComplex)*N3*N3*num);
+    cudaMalloc((void**)&pool2, sizeof(cufftComplex)*N3*N3*num);
     cudaMalloc(&A, sizeof(float)*n*n*num);
     cudaMalloc(&B, sizeof(float)*n*n*num);
     cudaMalloc(&C, sizeof(float)*n*n*num);
+    cudaMalloc(&D, sizeof(float)*n*n*num);
     cufftHandle plan;
-    int sizes[2] = {N2,N2};
-	cufftPlanMany(&plan, 2, sizes, NULL, 1, N2*N2, NULL, 1, N2*N2, CUFFT_C2C, num);
+    int sizes[2] = {N3,N3};
+	cufftPlanMany(&plan, 2, sizes, NULL, 1, N3*N3, NULL, 1, N3*N3, CUFFT_C2C, num);
     IA = new float[n*n*num];
     for(int i = 0; i < n*n*num; ++i){
         IA[i] = ((i&1)?-1.0f:1.0f);
@@ -165,26 +166,27 @@ int main(int argc, char** argv){
     cudaMemcpy(B, IA, num*n*n*sizeof(float), cudaMemcpyHostToDevice);
     cudaMemcpy(C, IA, num*n*n*sizeof(float), cudaMemcpyHostToDevice);
 
-    SH<n> sh1, sh2;
+    SH<n> sh1, sh2, sh3;
     for(int l = 0; l < n; ++l){
         for(int m = -l; m <= l; ++m){
             int index = l*(l+1)+m;
             sh1.at(l, m) = ((index&1)?-1.0f:1.0f);
             sh2.at(l, m) = ((index&1)?-1.0f:1.0f);
+            sh3.at(l, m) = ((index&1)?-1.0f:1.0f);
         }
     }
 
 
-    SH<n> sh3 = sh1*sh2;
+    SH<n> sh4 = sh1*sh2*sh3;
 
     for(int l = 0; l < n; ++l){
         for(int m = -l; m <= l; ++m){
-            std::cout << sh3.at(l, m) << ' ';
+            std::cout << sh4.at(l, m) << ' ';
         }
     }std::cout << std::endl;
 
-    shprod_many(A, B, C, pool0, pool1, pool2, num, plan);
-    cudaMemcpy(IA, C, num*n*n*sizeof(float), cudaMemcpyDeviceToHost);
+    shprod_many(A, B, C, D, pool0, pool1, pool2, num, plan);
+    cudaMemcpy(IA, D, num*n*n*sizeof(float), cudaMemcpyDeviceToHost);
 
     for(int i = 0; i < n*n; ++i){
         std::cout << IA[i] << ' ';

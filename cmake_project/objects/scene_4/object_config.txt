@@ -1,12 +1,10 @@
-4
-fence4.obj
+3
 fence2.obj
 ball.obj
 plane_simp.obj
 
-0 0 0 0
+0 0 0
 
-10 10 10
 10 10 10
 10 10 10
 10 10 10

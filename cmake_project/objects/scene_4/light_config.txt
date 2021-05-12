@@ -1,2 +1,2 @@
-0
+2
 objects/scene_4/area_light.obj
