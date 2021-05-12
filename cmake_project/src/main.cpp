@@ -195,7 +195,7 @@ int main(int argc, char** argv){
     return 0;*/
 
     dataProcessing(argc, argv);
-    renderer.loadTriple(band);
+    //renderer.loadTriple(band);
     gpu_initGamma();
     SH<n>::init();
     cpu_initGamma();

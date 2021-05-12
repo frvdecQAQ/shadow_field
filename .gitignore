@@ -6,3 +6,7 @@
 */.vscode
 */gamma_bin
 *.dat
+cmake_project/tmp/*
+cmake_project/pos.txt
+cmake_project/PRT
+cmake_project/result.png
