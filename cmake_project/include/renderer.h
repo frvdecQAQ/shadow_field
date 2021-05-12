@@ -44,7 +44,7 @@ public:
     virtual ~Renderer();
 
     void Init(int lightNumber);
-    void Render(bool render_again = false);
+    void Render(int render_cnt);
 
    SH<n> fs2sh(FourierSeries<5*n-4> fs)
     {
@@ -93,7 +93,7 @@ private:
     cufftHandle plan;
 
     const int batch_size = 4096;
-    const bool approx = false;
+    const bool approx = true;
 
     void objDraw();
     //void setupDiffuseBuffer(int type);

@@ -43,12 +43,12 @@ public:
         _rz(1.0f),
         _difforGeneral(false)
     {
-        light_triangle[0]._v0 = glm::vec3(1 * 0.4, 1.5, 0);
-        light_triangle[0]._v1 = glm::vec3(-1* 0.4, 1.5, 0);
-        light_triangle[0]._v2 = glm::vec3(0, 1.5, 1* 0.4);
-        light_triangle[1]._v0 = glm::vec3(1* 0.4, 1.5, 0);
-        light_triangle[1]._v1 = glm::vec3(-1* 0.4, 1.5, 0);
-        light_triangle[1]._v2 = glm::vec3(0, 1.5, -1* 0.4);
+        light_triangle[0]._v0 = glm::vec3(0.840000, 1.500000, 0.500000);
+        light_triangle[0]._v1 = glm::vec3(-0.84, 1.5, 0.5);
+        light_triangle[0]._v2 = glm::vec3(0.000000, 1.500000, 1.340000);
+        light_triangle[1]._v0 = glm::vec3(0.000000, 1.500000, -0.340000);
+        light_triangle[1]._v1 = glm::vec3(-0.84, 1.5, 0.5);
+        light_triangle[1]._v2 = glm::vec3(0.840000, 1.500000, 0.500000);
     }
 
     void init(std::string path, glm::vec3 albedo, bool texture = true);
@@ -82,7 +82,7 @@ protected:
     int _sample_size;
 
     const int sphereNumber = 32;
-    const int shadowSampleNumber = 48 * 48;
+    const int shadowSampleNumber = 128 * 128;
     const float rStep = 0.2f;
     const float rStart = 0.2f;
 

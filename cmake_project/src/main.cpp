@@ -66,14 +66,14 @@ Renderer renderer;
 int sampleNumber = 128 * 128;
 int band = 5;
 int sphereNumber = 32;
-int shadowSampleNumber = 48 * 48;
+int shadowSampleNumber = 128 * 128;
 
 // Cubemap & Simple Light.
 bool renderBar = true;
 
 // Camera.
-float camera_dis = 1.1f;
-glm::vec3 camera_pos(0.717031, 0.397814, -0.234986);
+float camera_dis = 3.9f;
+glm::vec3 camera_pos(0.670470, 0.361696, 0.383737);
 glm::vec3 last_camera_pos(0.0f, 0.0f, 1.0f);
 glm::vec3 camera_dir(0.0f, 0.0f, 0.0f);
 glm::vec3 camera_up(0.0f, 1.0f, 0.0f);
@@ -116,7 +116,7 @@ void shaderLoading();
 // Miscellaneous.
 void calculateFPS();
 
-void saveImage(char* filepath, GLFWwindow* w) {
+void saveImage(const char* filepath, GLFWwindow* w) {
 	int width, height;
 	glfwGetFramebufferSize(w, &width, &height);
 	GLsizei nrChannels = 3;
@@ -292,9 +292,8 @@ int main(int argc, char** argv){
         // Render.
         //int f;
         //scanf("%d", &f);
-        //scene.change(camera_pos, camera_dir);
         bool render_again = true;
-        renderer.Render(render_again);
+        renderer.Render(render_cnt);
 
         // Render AntTweakBar UI.
         if(renderBar) TwDraw();
@@ -306,6 +305,9 @@ int main(int argc, char** argv){
         render_cnt++;
         render_time += (end_time - start_time);
         std::cout << "avg time = " << render_time/render_cnt << std::endl;
+
+        //std::string save_path = "./"+std::to_string(render_cnt)+".png";
+        //if(render_cnt < 40)saveImage(save_path.c_str(), window);
 
         std::cout << " ============================ " << std::endl;
 

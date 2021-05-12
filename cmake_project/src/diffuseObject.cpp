@@ -174,10 +174,8 @@ void DiffuseObject::transform(const glm::mat4& m) {
     }
     Eigen::Quaterniond r1(rotate_Matrix);
     std::unique_ptr<sh::Rotation> r1_sh(sh::Rotation::Create(n-1, r1));
-    std::vector<double> coef_a, coef_b;
-    coef_a.resize(band2, 0.0);
-    coef_b.resize(band2, 0.0);
 
+#pragma omp parallel for
     for(int i = 0; i < sz; ++i) {
         int cur_index = i * 3;
         nx = _vertices[cur_index];
@@ -186,6 +184,10 @@ void DiffuseObject::transform(const glm::mat4& m) {
         _vertices[cur_index] = m[0][0] * nx + m[0][1] * ny + m[0][2] * nz + m[0][3];
         _vertices[cur_index + 1] = m[1][0] * nx + m[1][1] * ny + m[1][2] * nz + m[1][3];
         _vertices[cur_index + 2] = m[2][0] * nx + m[2][1] * ny + m[2][2] * nz + m[2][3];
+
+        std::vector<double> coef_a, coef_b;
+        coef_a.resize(band2, 0.0);
+        coef_b.resize(band2, 0.0);
 
         for(int j = 0; j < band2; ++j)coef_a[j] = _DTransferFunc[i][j].r;
         r1_sh->Apply(coef_a, &coef_b);
@@ -201,7 +203,11 @@ void DiffuseObject::transform(const glm::mat4& m) {
     }
 
     int point_sz = point_sample._samples.size();
+#pragma omp parallel for
     for (int i = 0; i < sphereNumber*point_sz; ++i) {
+        std::vector<double> coef_a, coef_b;
+        coef_a.resize(band2, 0.0);
+        coef_b.resize(band2, 0.0);
         for(int j = 0; j < band2; ++j)coef_a[j] = _ShadowField[i][j];
         r1_sh->Apply(coef_a, &coef_b);
         for(int j = 0; j < band2; ++j)_ShadowField[i][j] = coef_b[j];
@@ -295,7 +301,6 @@ void DiffuseObject::diffuseUnshadow(int size, int band2, Sampler* sampler, Trans
             {
                 Sample& stemp = point_sample._samples[j];
                 glm::vec3 now_pos = glm::vec3(_cx, _cy, _cz) + now_r*stemp._cartesCoord;
-                now_pos.y += 1e-6;
                 int i = t * shadowSampleNumber + j;
 
                 if (i % 1000 == 0)std::cout << i << std::endl;
@@ -325,11 +330,13 @@ void DiffuseObject::diffuseUnshadow(int size, int band2, Sampler* sampler, Trans
     {
         int index = 3 * i;
         glm::vec3 normal(_normals[index + 0], _normals[index + 1], _normals[index + 2]);
+        normal = glm::normalize(normal);
         int sample_sz = sampler->_samples.size();
         for (int j = 0; j < sample_sz; j++)
         {
             Sample stemp = sampler->_samples[j];
-            float H = std::max(glm::dot(glm::normalize(normal), glm::normalize(stemp._cartesCoord)), 0.0f);
+            float H = normal[0]*stemp._cartesCoord[0]+normal[1]*stemp._cartesCoord[1]+normal[2]*stemp._cartesCoord[2];
+            if(H < 0) H = 0.0f;
             bool visibility;
 
             if (shadow)
@@ -343,10 +350,10 @@ void DiffuseObject::diffuseUnshadow(int size, int band2, Sampler* sampler, Trans
                 visibility = true;
             }
 
-            if (!visibility)
+            /*if (!visibility)
             {
                 H = 0.0f;
-            }
+            }*/
             //Projection.
             for (int k = 0; k < band2; k++)
             {

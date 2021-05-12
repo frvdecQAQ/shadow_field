@@ -6,6 +6,8 @@
 #include <Eigen/Dense>
 #include <glm/glm.hpp>
 #include "sampler.h"
+#include "shorder.hpp"
+#include "shRotateMatrix.h"
 
 class Lighting
 {

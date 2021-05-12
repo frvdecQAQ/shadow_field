@@ -220,7 +220,6 @@ void Object::queryOOF(glm::vec3 p, float* coef, bool debug) {
         tmp_y[1] = ny_interp + 1;
     }
     float sum = 0;
-    //std::cout << "OOF query check point 2" << std::endl;
     for (int i = 0; i < 2; ++i) {
         float now_r = (tmp_t[i] * rStep + rStart) * _r;
         for (int j = 0; j < 2; ++j) {
@@ -240,6 +239,7 @@ void Object::queryOOF(glm::vec3 p, float* coef, bool debug) {
             }
         }
     }
+
     //std::cout << "OOF query check point 3" << std::endl;
     for (int i = 0; i < band2; ++i)coef[i] /= sum;
 }

@@ -156,6 +156,29 @@ __global__ void cu_sh1_fs5(float* SH, cufftComplex* FS)
     #include "generated/sh1_fs5.cu"
 }
 
+__global__ void cu_sh1_fs4(float* SH, cufftComplex* FS)
+{
+    const int i = blockIdx.x * blockDim.x + threadIdx.x;
+    const int shbase = i*n*n;
+    const int fsbase = i*N4*N4;
+    // copy to register
+    float SHreg[n*n];
+    memcpy(SHreg, SH+shbase, n*n*sizeof(float));
+    // execute
+    #include "generated/sh1_fs4.cu"
+}
+
+__global__ void cu_fs4_sh1(cufftComplex* FS, float* SH)
+{
+    const int i = blockIdx.x * blockDim.x + threadIdx.x;
+    const int shbase = i*n*n;
+    const int fsbase = i*N4*N4;
+    float SHreg[n*n];
+    #include "generated/fs4_sh1.cu"
+    // copy back to global memory
+    memcpy(SH+shbase, SHreg, n*n*sizeof(float));
+}
+
 __global__ void cu_fs2sh(cufftComplex* FS, float* SH)
 {
     const int i = blockIdx.x * blockDim.x + threadIdx.x;
@@ -201,49 +224,6 @@ __global__ void multiply(cufftComplex* A, cufftComplex* B)
 	float y = A[i].y * B[i].x + A[i].x * B[i].y;
 	B[i].x = x;
 	B[i].y = y;
-}
-
-// A, B, C are pointers to SH coefficients in device memory
-// layout: SH_0 [ at(0,0), at(1,-1), at(1,0), ... ], SH_1, ...
-void shprod_many(float* A, float* B, float* C, float* D, float* E, float* F,
-            cufftComplex* pool0, cufftComplex* pool1, cufftComplex* pool2,
-            int multi_product_num, cufftHandle plan)
-{
-	const int blocksize = 32;
-	assert(multi_product_num%blocksize == 0);
-	cu_sh1_fs5<<<multi_product_num/blocksize, blocksize>>>(A, pool0);
-
-	cufftExecC2C(plan, pool0, pool1, CUFFT_FORWARD);
-
-	cu_sh1_fs5<<<multi_product_num/blocksize, blocksize>>>(B, pool0);
-
-	cufftExecC2C(plan, pool0, pool2, CUFFT_FORWARD);
-	multiply<<<multi_product_num*N5*N5/blocksize, blocksize>>>(pool1, pool2);
-
-	cu_sh1_fs5<<<multi_product_num/blocksize, blocksize>>>(C, pool0);
-
-	cufftExecC2C(plan, pool0, pool1, CUFFT_FORWARD);
-	multiply<<<multi_product_num*N5*N5/blocksize, blocksize>>>(pool1, pool2);
-
-	cu_sh1_fs5<<<multi_product_num/blocksize, blocksize>>>(D, pool0);
-
-	cufftExecC2C(plan, pool0, pool1, CUFFT_FORWARD);
-	multiply<<<multi_product_num*N5*N5/blocksize, blocksize>>>(pool1, pool2);
-
-	cu_sh1_fs5<<<multi_product_num/blocksize, blocksize>>>(E, pool0);
-
-	cufftExecC2C(plan, pool0, pool1, CUFFT_FORWARD);
-	multiply<<<multi_product_num*N5*N5/blocksize, blocksize>>>(pool1, pool2);
-	// IDFT & convert backs to SH
-	cufftExecC2C(plan, pool2, pool1, CUFFT_INVERSE);
-
-	cu_fs5_sh1<<<multi_product_num/blocksize, blocksize>>>(pool1, F);
-	// synchronize
-	cudaDeviceSynchronize();
-	//console.log("sh2fsexec:", dtsh);
-	//console.log("fftexec:", fftdt);
-	//console.log("fs2shexec:", dt-fftdt);
-    //console.timeEnd("exclude_planning " + std::to_string(num));
 }
 
 __global__ void shprod_conventional(float* A, float* B, float* C, float* D, float* E, float* F)
@@ -317,6 +297,83 @@ void multi_product(float *A, float *B, float* C, float *D, float *E, float *F,
 
     if(type == 0)shprod_conventional<<<grid, block>>>(A,B,C,D,E,F);
     else if(type == 1)shprod_conventional_precise<<<grid, block>>>(A,B,C,D,E,F);
+}
+
+// A, B, C are pointers to SH coefficients in device memory
+// layout: SH_0 [ at(0,0), at(1,-1), at(1,0), ... ], SH_1, ...
+void shprod_many(float* A, float* B, float* C, float* D, float* E, float* F,
+    cufftComplex* pool0, cufftComplex* pool1, cufftComplex* pool2,
+    int multi_product_num, cufftHandle plan)
+{
+    const int blocksize = 32;
+    assert(multi_product_num%blocksize == 0);
+    cu_sh1_fs5<<<multi_product_num/blocksize, blocksize>>>(A, pool0);
+
+    cufftExecC2C(plan, pool0, pool1, CUFFT_FORWARD);
+
+    cu_sh1_fs5<<<multi_product_num/blocksize, blocksize>>>(B, pool0);
+
+    cufftExecC2C(plan, pool0, pool2, CUFFT_FORWARD);
+    multiply<<<multi_product_num*N5*N5/blocksize, blocksize>>>(pool1, pool2);
+
+    cu_sh1_fs5<<<multi_product_num/blocksize, blocksize>>>(C, pool0);
+
+    cufftExecC2C(plan, pool0, pool1, CUFFT_FORWARD);
+    multiply<<<multi_product_num*N5*N5/blocksize, blocksize>>>(pool1, pool2);
+
+    cu_sh1_fs5<<<multi_product_num/blocksize, blocksize>>>(D, pool0);
+
+    cufftExecC2C(plan, pool0, pool1, CUFFT_FORWARD);
+    multiply<<<multi_product_num*N5*N5/blocksize, blocksize>>>(pool1, pool2);
+
+    cu_sh1_fs5<<<multi_product_num/blocksize, blocksize>>>(E, pool0);
+
+    cufftExecC2C(plan, pool0, pool1, CUFFT_FORWARD);
+    multiply<<<multi_product_num*N5*N5/blocksize, blocksize>>>(pool1, pool2);
+    // IDFT & convert backs to SH
+    cufftExecC2C(plan, pool2, pool1, CUFFT_INVERSE);
+
+    cu_fs5_sh1<<<multi_product_num/blocksize, blocksize>>>(pool1, F);
+    // synchronize
+    cudaDeviceSynchronize();
+    //console.log("sh2fsexec:", dtsh);
+    //console.log("fftexec:", fftdt);
+    //console.log("fs2shexec:", dt-fftdt);
+    //console.timeEnd("exclude_planning " + std::to_string(num));
+}
+
+void shprod_many(float* A, float* B, float* C, float* D, float* E,
+    cufftComplex *pool0, cufftComplex *pool1, cufftComplex *pool2,
+    int num, cufftHandle plan)
+{
+	const int blocksize = 32;
+	assert(num%blocksize == 0);
+	// DFT on A
+	cu_sh1_fs4<<<num/blocksize, blocksize>>>(A, pool0);
+
+	cufftExecC2C(plan, pool0, pool1, CUFFT_FORWARD);
+
+	cu_sh1_fs4<<<num/blocksize, blocksize>>>(B, pool0);
+	cufftExecC2C(plan, pool0, pool2, CUFFT_FORWARD);
+	// element-wise multiply
+	multiply<<<num*N4*N4/blocksize, blocksize>>>(pool1, pool2);
+	// DFT on C
+	cu_sh1_fs4<<<num/blocksize, blocksize>>>(C, pool0);
+	cufftExecC2C(plan, pool0, pool1, CUFFT_FORWARD);
+	// element-wise multiply
+	multiply<<<num*N4*N4/blocksize, blocksize>>>(pool1, pool2);
+	// DFT on D
+	cu_sh1_fs4<<<num/blocksize, blocksize>>>(D, pool0);
+	cufftExecC2C(plan, pool0, pool1, CUFFT_FORWARD);
+	// element-wise multiply
+	multiply<<<num*N4*N4/blocksize, blocksize>>>(pool1, pool2);
+	// IDFT & convert backs to SH
+	cufftExecC2C(plan, pool2, pool1, CUFFT_INVERSE);
+
+	cu_fs4_sh1<<<num/blocksize, blocksize>>>(pool1, E);
+
+	// synchronize
+	cudaDeviceSynchronize();
 }
 
 void shprod_many(float* A, float* B, float* C, 

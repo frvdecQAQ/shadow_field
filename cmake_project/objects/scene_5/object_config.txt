@@ -1,0 +1,8 @@
+2
+ball.obj
+plane_simp.obj
+
+0 0
+
+10 10 10
+10 10 10

@@ -158,6 +158,15 @@ void Renderer::Setup(Scene* scene, Lighting* light){
             int sizes[2] = {N5,N5};
             cufftPlanMany(&plan, 2, sizes, NULL, 1, N5*N5, NULL, 1, N5*N5, CUFFT_C2C, batch_size);
         }
+        else if(scene->obj_num == 4)
+        {
+            cudaMalloc((void**)&gpu_pool0, sizeof(cufftComplex)*N4*N4*batch_size);
+            cudaMalloc((void**)&gpu_pool1, sizeof(cufftComplex)*N4*N4*batch_size);
+            cudaMalloc((void**)&gpu_pool2, sizeof(cufftComplex)*N4*N4*batch_size);
+
+            int sizes[2] = {N4,N4};
+            cufftPlanMany(&plan, 2, sizes, NULL, 1, N4*N4, NULL, 1, N4*N4, CUFFT_C2C, batch_size);
+        }
     }
 }
 
@@ -326,10 +335,15 @@ void Renderer::setupBuffer(int type, glm::vec3 viewDir)
             }
             if(_scene->obj_num == 5)
             {
-                multi_product(gpu_data[0], gpu_data[1], gpu_data[2], gpu_data[3], gpu_data[4], gpu_data[5],
-                    batch_size, 0);
-                //shprod_many(gpu_data[0], gpu_data[1], gpu_data[2], gpu_data[3], gpu_data[4], gpu_data[5], 
-                //        gpu_pool0, gpu_pool1, gpu_pool2, batch_size, plan);
+                //multi_product(gpu_data[0], gpu_data[1], gpu_data[2], gpu_data[3], gpu_data[4], gpu_data[5],
+                //   batch_size, 0);
+                shprod_many(gpu_data[0], gpu_data[1], gpu_data[2], gpu_data[3], gpu_data[4], gpu_data[5], 
+                        gpu_pool0, gpu_pool1, gpu_pool2, batch_size, plan);
+            }
+            else if(_scene->obj_num == 4)
+            {
+                shprod_many(gpu_data[0], gpu_data[1], gpu_data[2], gpu_data[3], gpu_data[4],
+                    gpu_pool0, gpu_pool1, gpu_pool2, batch_size, plan);
             }
             cudaMemcpy(cpu_data[_scene->obj_num]+i*batch_size*band2, gpu_data[_scene->obj_num], 
                     sizeof(float)*batch_size*band2, cudaMemcpyDeviceToHost);
@@ -404,9 +418,9 @@ void Renderer::setupBuffer(int type, glm::vec3 viewDir)
                     cr += _lighting->_Vcoeffs[0](j) * multi_product_result;
                     cg += _lighting->_Vcoeffs[1](j) * multi_product_result;
                     cb += _lighting->_Vcoeffs[2](j) * multi_product_result;
-                    /*cr += obj_now->light_coef[i*band2*3+j]*multi_product_result;
-                    cg += obj_now->light_coef[i*band2*3+band2+j]*multi_product_result;
-                    cb += obj_now->light_coef[i*band2*3+band2*2+j]*multi_product_result;*/
+                    //cr += obj_now->light_coef[i*band2*3+j]*multi_product_result;
+                    //cg += obj_now->light_coef[i*band2*3+band2+j]*multi_product_result;
+                    //cb += obj_now->light_coef[i*band2*3+band2*2+j]*multi_product_result;
                 }
                 else
                 {
@@ -515,8 +529,16 @@ void Renderer::objDraw()
     glBindVertexArray(0);
 }
 
-void Renderer::Render(bool render_again)
+void Renderer::Render(int render_cnt)
 {
+    glm::mat4 rotateMatrix = glm::mat4(1.0f);
+	/*rotateMatrix[0][0] = std::cos(M_PI / 180);
+	rotateMatrix[0][2] = -std::sin(M_PI / 180);
+	rotateMatrix[2][0] = std::sin(M_PI / 180);
+	rotateMatrix[2][2] = std::cos(M_PI / 180);*/
+    if((render_cnt/20)&1)rotateMatrix[2][3] = 0.03f;
+    else rotateMatrix[2][3] = -0.03f;
+    _lighting->rotate(rotateMatrix);
     // Render objects.
     glm::mat4 view = glm::lookAt(camera_dis * camera_pos, camera_dir, camera_up);
     glm::mat4 model = glm::mat4(1.0f);
@@ -529,7 +551,7 @@ void Renderer::Render(bool render_again)
     std::cout << "c_dis : " << camera_dis << std::endl;
     std::cout << "c_pos : " << camera_pos[0] << ' ' << camera_pos[1] << ' ' << camera_pos[2] << std::endl;
 
-    if (render_again)setupBuffer(0, camera_dis*camera_pos);
+    setupBuffer(0, camera_dis*camera_pos);
 
     objDraw();
 

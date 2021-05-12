@@ -496,5 +496,74 @@ void Lighting::querySRF(glm::vec3 p, glm::vec3* coef) {
 }
 
 void Lighting::rotate(const glm::mat4& m){
-    
+    assert(light_type == 2);
+    int band2 = _band * _band;
+    //float* coef_in = new float[band2];
+    //float* coef_out = new float[band2];
+    int sz = _vertices.size() / 3;
+    float nx, ny, nz;
+    nx = _cx;
+    ny = _cy;
+    nz = _cz;
+    _cx = m[0][0] * nx + m[0][1] * ny + m[0][2] * nz + m[0][3];
+    _cy = m[1][0] * nx + m[1][1] * ny + m[1][2] * nz + m[1][3];
+    _cz = m[2][0] * nx + m[2][1] * ny + m[2][2] * nz + m[2][3];
+
+    Eigen::Matrix3d rotate_Matrix;
+    for(int i = 0; i < 3; ++i)for(int j = 0; j < 3; ++j){
+        rotate_Matrix(i, j) = m[i][j];
+    }
+    Eigen::Quaterniond r1(rotate_Matrix);
+    std::unique_ptr<sh::Rotation> r1_sh(sh::Rotation::Create(n-1, r1));
+
+#pragma omp parallel for
+    for(int i = 0; i < sz; ++i) {
+        int cur_index = i * 3;
+        nx = _vertices[cur_index];
+        ny = _vertices[cur_index + 1];
+        nz = _vertices[cur_index + 2];
+        _vertices[cur_index] = m[0][0] * nx + m[0][1] * ny + m[0][2] * nz + m[0][3];
+        _vertices[cur_index + 1] = m[1][0] * nx + m[1][1] * ny + m[1][2] * nz + m[1][3];
+        _vertices[cur_index + 2] = m[2][0] * nx + m[2][1] * ny + m[2][2] * nz + m[2][3];
+    }
+
+    int point_sz = point_sample._samples.size();
+#pragma omp parallel for
+    for (int i = 0; i < sphereNumber*point_sz; ++i) {
+        std::vector<double> coef_a, coef_b;
+        coef_a.resize(band2, 0.0);
+        coef_b.resize(band2, 0.0);
+        int base_index_r = i*band2;
+        int base_index_g = base_index_r+band2;
+        int base_index_b = base_index_g+band2;
+        for(int j = 0; j < band2; ++j)coef_a[j] = shadow_field[base_index_r+j].r;
+        r1_sh->Apply(coef_a, &coef_b);
+        for(int j = 0; j < band2; ++j)shadow_field[base_index_r+j].r = coef_b[j];
+
+        for(int j = 0; j < band2; ++j)coef_a[j] = shadow_field[base_index_g+j].g;
+        r1_sh->Apply(coef_a, &coef_b);
+        for(int j = 0; j < band2; ++j)shadow_field[base_index_g+j].g = coef_b[j];
+
+        for(int j = 0; j < band2; ++j)coef_a[j] = shadow_field[base_index_b+j].b;
+        r1_sh->Apply(coef_a, &coef_b);
+        for(int j = 0; j < band2; ++j)shadow_field[base_index_b+j].b = coef_b[j];
+    }
+
+    glm::mat4 tmp_mat;
+    for (int i = 0; i < 4; ++i) {
+        for (int j = 0; j < 4; ++j) {
+            tmp_mat[i][j] = 0;
+            for (int k = 0; k < 4; ++k) {
+                tmp_mat[i][j] += m[i][k] * rotate_mat[k][j];
+            }
+        }
+    }
+    for (int i = 0; i < 4; ++i)for (int j = 0; j < 4; ++j)rotate_mat[i][j] = tmp_mat[i][j];
+    for (int i = 0; i < 3; ++i)for (int j = 0; j < 3; ++j)rotate_mat_inv[i][j] = rotate_mat[j][i];
+    for (int i = 0; i < 3; ++i) {
+        rotate_mat_inv[i][3] = 0;
+        for (int j = 0; j < 3; ++j) {
+            rotate_mat_inv[i][3] -= rotate_mat_inv[i][j] * rotate_mat[j][3];
+        }
+    }
 }
