@@ -28,6 +28,11 @@ void releaseGamma();
 
 void multi_product(float *A, float *B, float* C, float *D, float *E, float *F,
                     int multi_product_num, int type);
+void multi_product(float *A, float* B, float* C, float* D, float* E,
+                    int multi_product_num, int type);
+void multi_product(float* A, float* B, float* C, float* D,
+                    int multi_product_num, int type);
+
 void shprod_many(float* A, float* B, float* C, float* D, float* E, float* F,
             cufftComplex* pool0, cufftComplex* pool1, cufftComplex* pool2,
             int multi_product_num, cufftHandle plan);

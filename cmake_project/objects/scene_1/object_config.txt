@@ -1,14 +1,10 @@
-5
-plane.obj
-airplane.obj
+3
 al.obj
-lamp.obj
 violin.obj
+plane_simp.obj
 
-0 0 0 0 0
+0 0 0
 
-1 1 1
-1 1 1
 1 1 1
 1 1 1
 1 1 1

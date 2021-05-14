@@ -24,6 +24,10 @@ __constant__ TensorEntry* deviceSparseGamma213;
 __constant__ int deviceSparseGamma213Size;
 __constant__ TensorEntry* deviceSparseGamma314;
 __constant__ int deviceSparseGamma314Size;
+__constant__ TensorEntry* deviceSparseGamma211;
+__constant__ int deviceSparseGamma211Size;
+__constant__ TensorEntry* deviceSparseGamma311;
+__constant__ int deviceSparseGamma311Size;
 __constant__ TensorEntry* deviceSparseGamma411;
 __constant__ int deviceSparseGamma411Size;
 // on CPU
@@ -118,6 +122,20 @@ void gpu_initGamma()
     cudaMemcpy(p, &v1[0], size * sizeof(TensorEntry), cudaMemcpyHostToDevice);
     cudaMemcpyToSymbol(deviceSparseGamma314, &p, sizeof(TensorEntry*));
     cudaMemcpyToSymbol(deviceSparseGamma314Size, &size, sizeof(int));
+    // gamma 2,1,1
+    v1 = gpu_filterGamma(v, 2*n-1, n, n);
+    size = v1.size();
+    cudaMalloc((void**)&p, size * sizeof(TensorEntry));
+    cudaMemcpy(p, &v1[0], size * sizeof(TensorEntry), cudaMemcpyHostToDevice);
+    cudaMemcpyToSymbol(deviceSparseGamma211, &p, sizeof(TensorEntry*));
+    cudaMemcpyToSymbol(deviceSparseGamma211Size, &size, sizeof(int));
+    // gamma 3,1,1
+    v1 = gpu_filterGamma(v, 3*n-2, n, n);
+    size = v1.size();
+    cudaMalloc((void**)&p, size * sizeof(TensorEntry));
+    cudaMemcpy(p, &v1[0], size * sizeof(TensorEntry), cudaMemcpyHostToDevice);
+    cudaMemcpyToSymbol(deviceSparseGamma311, &p, sizeof(TensorEntry*));
+    cudaMemcpyToSymbol(deviceSparseGamma311Size, &size, sizeof(int));
     // gamma 4,1,1
     v1 = gpu_filterGamma(v, 4*n-3, n, n);
     size = v1.size();
@@ -281,6 +299,53 @@ __global__ void shprod_conventional(float* A, float* B, float* C, float* D, floa
     memcpy(F+base, Breg, n*n*sizeof(float));
 }
 
+__global__ void shprod_conventional(float* A, float* B, float* C, float* D, float* E)
+{
+    const int i = blockIdx.x * blockDim.x + threadIdx.x;
+    const int base = i*n*n;
+    float Areg[n*n];
+    float Breg[n*n];
+    float Treg[n*n];
+    memcpy(Areg, A+base, n*n*sizeof(float));
+    memcpy(Breg, B+base, n*n*sizeof(float));
+    memset(Treg, 0, n*n*sizeof(float));
+#define e deviceSparseGamma[i]
+    for (int i=0; i<deviceSparseGammaSize; ++i)
+        Treg[e.c] += e.val * Areg[e.a] * Breg[e.b];
+    memcpy(Areg, C+base, n*n*sizeof(float));
+    memset(Breg, 0, n*n*sizeof(float));
+    for (int i=0; i<deviceSparseGammaSize; ++i)
+        Breg[e.c] += e.val * Treg[e.a] * Areg[e.b];
+    memcpy(Areg, D+base, n*n*sizeof(float));
+    memset(Treg, 0, n*n*sizeof(float));
+    for (int i=0; i<deviceSparseGammaSize; ++i)
+        Treg[e.c] += e.val * Areg[e.a] * Breg[e.b];
+#undef e
+    memcpy(E+base, Treg, n*n*sizeof(float));
+}
+
+__global__ void shprod_conventional(float* A, float* B, float* C, float* D)
+{
+    const int i = blockIdx.x * blockDim.x + threadIdx.x;
+    const int base = i*n*n;
+    float Areg[n*n];
+    float Breg[n*n];
+    float Treg[n*n];
+    memcpy(Areg, A+base, n*n*sizeof(float));
+    memcpy(Breg, B+base, n*n*sizeof(float));
+    memset(Treg, 0, n*n*sizeof(float));
+#define e deviceSparseGamma[i]
+    for (int i=0; i<deviceSparseGammaSize; ++i)
+        Treg[e.c] += e.val * Areg[e.a] * Breg[e.b];
+    memcpy(Areg, C+base, n*n*sizeof(float));
+    memset(Breg, 0, n*n*sizeof(float));
+    for (int i=0; i<deviceSparseGammaSize; ++i)
+        Breg[e.c] += e.val * Treg[e.a] * Areg[e.b];
+#undef e
+    memcpy(D+base, Breg, n*n*sizeof(float));
+}
+
+
 
 __global__ void shprod_conventional_precise(float* A, float* B, float* C, float* D, float* E, float* F)
 {
@@ -314,6 +379,62 @@ __global__ void shprod_conventional_precise(float* A, float* B, float* C, float*
     memcpy(F+base, Areg, n*n*sizeof(float));
 }
 
+__global__ void shprod_conventional_precise(float* A, float* B, float* C, float* D, float* E)
+{
+    // bruteforce, not yet optimized
+    constexpr int n1 = 3*n-2;
+    const int i = blockIdx.x * blockDim.x + threadIdx.x;
+    const int base = i*n*n;
+    float Areg[n1*n1];
+    float Breg[n1*n1];
+    float T1reg[n1*n1];
+    float T2reg[n1*n1];
+    memset(Areg, 0, n1*n1*sizeof(float));
+    memset(Breg, 0, n1*n1*sizeof(float));
+#define SHMUL(A,B,C,ka,kb,kc) \
+    memset(C, 0, n1*n1*sizeof(float)); \
+    for (int i=0; i<deviceSparseGamma##ka##kb##kc##Size; ++i) \
+        C[deviceSparseGamma##ka##kb##kc[i].c] += deviceSparseGamma##ka##kb##kc[i].val * A[deviceSparseGamma##ka##kb##kc[i].a] * B[deviceSparseGamma##ka##kb##kc[i].b];
+    // T1 = A * B
+    memcpy(Areg, A+base, n*n*sizeof(float));
+    memcpy(Breg, B+base, n*n*sizeof(float));
+    SHMUL(Areg, Breg, T1reg, 1,1,2)
+    // T2 = T1 * C
+    memcpy(Areg, C+base, n*n*sizeof(float));
+    SHMUL(T1reg, Areg, T2reg, 2,1,3)
+    // Areg = T2 * D
+    memcpy(Breg, D+base, n*n*sizeof(float));
+    SHMUL(T2reg, Breg, Areg, 3,1,1)
+    memcpy(E+base, Areg, n*n*sizeof(float));
+}
+
+__global__ void shprod_conventional_precise(float* A, float* B, float* C, float* D)
+{
+    // bruteforce, not yet optimized
+    const int i = blockIdx.x * blockDim.x + threadIdx.x;
+    const int base = i*n*n;
+    const int n1 = 2*n-1;
+    float Areg[n1*n1];
+    float Breg[n1*n1];
+    float Treg[n1*n1];
+    memset(Areg, 0, n1*n1*sizeof(float));
+    memset(Breg, 0, n1*n1*sizeof(float));
+    memset(Treg, 0, n1*n1*sizeof(float));
+    memcpy(Areg, A+base, n*n*sizeof(float));
+    memcpy(Breg, B+base, n*n*sizeof(float));
+#define e deviceSparseGamma112[i]
+    for (int i=0; i<deviceSparseGamma112Size; ++i)
+        Treg[e.c] += e.val * Areg[e.a] * Breg[e.b];
+#undef e
+    memcpy(Areg, C+base, n*n*sizeof(float));
+    memset(Breg, 0, n1*n1*sizeof(float));
+#define e deviceSparseGamma211[i]
+    for (int i=0; i<deviceSparseGamma211Size; ++i)
+        Breg[e.c] += e.val * Treg[e.a] * Areg[e.b];
+#undef e
+    memcpy(D+base, Breg, n*n*sizeof(float));
+}
+
 void multi_product(float *A, float *B, float* C, float *D, float *E, float *F,
                     int multi_product_num, int type)
 {
@@ -323,6 +444,28 @@ void multi_product(float *A, float *B, float* C, float *D, float *E, float *F,
 
     if(type == 0)shprod_conventional<<<grid, block>>>(A,B,C,D,E,F);
     else if(type == 1)shprod_conventional_precise<<<grid, block>>>(A,B,C,D,E,F);
+}
+
+void multi_product(float *A, float* B, float* C, float* D, float* E,
+                    int multi_product_num, int type)
+{
+    assert(multi_product_num%traditional_blocksize==0);
+    dim3 grid(multi_product_num/traditional_blocksize,1);
+    dim3 block(traditional_blocksize,1);
+
+    if(type == 0)shprod_conventional<<<grid, block>>>(A,B,C,D,E);
+    else if(type == 1)shprod_conventional_precise<<<grid, block>>>(A,B,C,D,E);
+}
+
+void multi_product(float* A, float* B, float* C, float* D,
+                    int multi_product_num, int type)
+{
+    assert(multi_product_num%traditional_blocksize==0);
+    dim3 grid(multi_product_num/traditional_blocksize,1);
+    dim3 block(traditional_blocksize,1);
+
+    if(type == 0)shprod_conventional<<<grid, block>>>(A,B,C,D);
+    else if(type == 1)shprod_conventional_precise<<<grid, block>>>(A,B,C,D);
 }
 
 // A, B, C are pointers to SH coefficients in device memory

@@ -35,6 +35,8 @@ struct MeshVertex
     float r;
     float g;
     float b;
+    float u;
+    float v;
 };
 
 class Renderer
@@ -65,6 +67,9 @@ public:
     void SetupColorBuffer(int type, glm::vec3 viewDir, bool diffuse = true);
     void loadTriple(int _band);
 
+    bool approx = true;
+
+
 private:
     //DiffuseObject* _diffObject;
     //GeneralObject* _genObject;
@@ -93,11 +98,11 @@ private:
     cufftHandle plan;
 
     const int batch_size = 4096;
-    const bool approx = true;
-
+    //const bool approx = true;
     void objDraw();
     //void setupDiffuseBuffer(int type);
-    void setupBuffer(int type, glm::vec3 viewDir);
+    void setupBuffer(int type, glm::vec3 viewDir, 
+                glm::mat4& model, glm::mat4& view, glm::mat4& projection);
     void our_multi_product(float *a, float *b, float *c, float *d, float *e, float *f);
     void precise_multi_product(float *a, float *b, float *c, float *d, float *e, float *f);
     void brute_multi_product(float *a, float *b, float *c, float *d, float *e, float *f);

@@ -16,7 +16,8 @@ public:
         _difforGeneral = true;
     }
 
-    void project2SH(int mode, int band, int sampleNumber, int bounce) override;
+    void project2SH(int mode, int band, int sampleNumber, int bounce,
+        std::vector<Object*> obj_list, int this_id) override;
     void write2Diskbin(std::string filename) override;
     void readFDiskbin(std::string filename) override;
 

@@ -1,0 +1,12 @@
+4
+chair_t.obj
+ball_t.obj
+plane_simp.obj
+elephant.obj
+
+0 0 0 0
+
+13.97 2.666 2.666
+6.7843 8.47 9.02
+17 15 17
+10 10 10

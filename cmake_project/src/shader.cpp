@@ -19,7 +19,8 @@ void Shader::Compile(const GLchar *vertexSource, const GLchar *fragmentSource, c
                      const GLchar **transformFeedbackVaryings, unsigned int numTransformFeedbackVaryings,
                      bool interleavedTransformFeedbackAttribs)
 {
-    std::cout << vertexSource << std::endl;
+    //std::cout << vertexSource << std::endl;
+    //std::cout << fragmentSource << std::endl;
     GLuint sVertex, sFragment, gShader;
     // Vertex Shader
     sVertex = glCreateShader(GL_VERTEX_SHADER);

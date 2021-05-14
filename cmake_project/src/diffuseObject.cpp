@@ -18,6 +18,7 @@ void DiffuseObject::write2Diskbin(std::string filename)
     out.write((char*)&sphereNumber, sizeof(int));
     out.write((char*)&shadowSampleNumber, sizeof(int));
     out.write((char*)&rStep, sizeof(float));
+    out.write((char*)&obj_sz, sizeof(int));
 
     for (int i = 0; i < size; ++i)
     {
@@ -49,6 +50,11 @@ void DiffuseObject::write2Diskbin(std::string filename)
         }
     }
 
+    size = _vertices.size() / 3;
+    for(int i = 0; i < obj_sz*band2*size; ++i){
+        out.write((char*)&shadow_all[i], sizeof(float));
+    }
+    
     out.close();
 
     std::cout << "Diffuse object generated." << std::endl;
@@ -70,6 +76,7 @@ void DiffuseObject::readFDiskbin(std::string filename)
    in.read((char*)&sphereNumber, sizeof(int));
    in.read((char*)&shadowSampleNumber, sizeof(int));
    in.read((char*)&rStep, sizeof(float));
+   in.read((char*)&obj_sz, sizeof(int));
 
    std::cout << "Diffuse object: " << filename << std::endl;
    std::cout << "band = " << _band << std::endl;
@@ -115,6 +122,11 @@ void DiffuseObject::readFDiskbin(std::string filename)
        cartesian.y = sin(spherical[0]) * sin(spherical[1]);
        cartesian.z = cos(spherical[0]);
        point_sample._samples.emplace_back(Sample(cartesian, spherical));
+   }
+   size = _vertices.size() / 3;
+   if(shadow_all == nullptr)shadow_all = new float[obj_sz*band2*size];
+   for(int i = 0; i < obj_sz*band2*size; ++i){
+       in.read((char*)&shadow_all[i], sizeof(float));
    }
    in.close();
 }
@@ -256,7 +268,8 @@ void DiffuseObject::transform(const glm::mat4& m) {
     //delete[] coef_out;
 }
 
-void DiffuseObject::diffuseUnshadow(int size, int band2, Sampler* sampler, TransferType type, BVHTree* Inbvht)
+void DiffuseObject::diffuseUnshadow(int size, int band2, Sampler* sampler, TransferType type, 
+    std::vector<Object*> obj_list, int this_id, BVHTree* Inbvht)
 {
     bool shadow = false;
     if (type != T_UNSHADOW)
@@ -275,6 +288,72 @@ void DiffuseObject::diffuseUnshadow(int size, int band2, Sampler* sampler, Trans
             bvht.build(*this);
         else
             bvht = *Inbvht;
+    }
+
+    obj_sz = obj_list.size();
+    BVHTree bvht_all[obj_sz];
+
+    for(int i = 0; i < obj_sz; ++i){
+        bvht_all[i].build(*obj_list[i]);
+    }
+
+    int sample_sz = sampler->_samples.size();
+    shadow_all = new float[size*obj_sz*band2];
+    float weight_shadow = 4*M_PI/sample_sz;
+
+    /*if(this_id == 2){
+        int ii = 1199;
+        int offset = 3*ii;
+        Sample& stemp = sampler->_samples[ii];
+        glm::vec3 now_pos = glm::vec3(_vertices[offset], _vertices[offset+1], _vertices[offset+2]);
+        Ray testRay(now_pos, stemp._cartesCoord);
+        const int tmp_n = 1024;
+        for(int k = 0; k < obj_sz; ++k){
+            cv::Mat gray(tmp_n, tmp_n/2, CV_32FC1);
+            for (int y = 0; y < tmp_n/2; ++y) {
+                float theta = (float(y) + 0.5f) / float(tmp_n/2) * M_PI;
+                for (int x = 0; x < tmp_n; ++x) {
+                    float phi = (float(x) + 0.5f) / float(tmp_n) * 2.f * M_PI;
+                    // Compute color for direction $(\theta,\phi)$ from function
+                    glm::vec3 w(-sin(theta) * cos(phi), -sin(theta) * sinf(phi), cos(theta));
+                    Ray testRay(now_pos, w);
+                    float val;
+                    if(k != this_id)val = bvht_all[k].intersect(testRay, false);
+                    else val = bvht_all[k].intersect(testRay, true);
+                    gray.at<float>(y, x) = val*255.0;
+                }
+            }
+            cv::imwrite((std::to_string(k)+".jpg").c_str(), gray);
+        }
+    }*/
+
+#pragma omp parallel for
+    for(int i = 0; i < size; ++i)
+    {
+        if(i % 1000 == 0)std::cout << i << std::endl;
+        for (int j = 0; j < sample_sz; j++)
+        {
+            int offset = 3*i;
+            Sample& stemp = sampler->_samples[j];
+            glm::vec3 now_pos = glm::vec3(_vertices[offset], _vertices[offset+1], _vertices[offset+2]);
+            Ray testRay(now_pos, stemp._cartesCoord);
+            bool visibility;
+            for(int k = 0; k < obj_sz; ++k)
+            {
+                if(k == this_id)visibility = !bvht_all[k].intersect(testRay, true);
+                else visibility = !bvht_all[k].intersect(testRay, false);
+                if(visibility)
+                {
+                    for(int t = 0; t < band2; ++t)
+                    {
+                        shadow_all[i*obj_sz*band2+k*band2+t] += stemp._SHvalue[t];
+                    }    
+                }
+            }
+        }
+        for(int k = 0; k < obj_sz*band2; ++k){
+            shadow_all[i*obj_sz*band2+k] *= weight_shadow;
+        }
     }
 
     // Sample.
@@ -301,6 +380,7 @@ void DiffuseObject::diffuseUnshadow(int size, int band2, Sampler* sampler, Trans
             {
                 Sample& stemp = point_sample._samples[j];
                 glm::vec3 now_pos = glm::vec3(_cx, _cy, _cz) + now_r*stemp._cartesCoord;
+                now_pos.y += 1e-6;
                 int i = t * shadowSampleNumber + j;
 
                 if (i % 1000 == 0)std::cout << i << std::endl;
@@ -337,6 +417,7 @@ void DiffuseObject::diffuseUnshadow(int size, int band2, Sampler* sampler, Trans
             Sample stemp = sampler->_samples[j];
             float H = normal[0]*stemp._cartesCoord[0]+normal[1]*stemp._cartesCoord[1]+normal[2]*stemp._cartesCoord[2];
             if(H < 0) H = 0.0f;
+            //else H = 1.0f;
             bool visibility;
 
             if (shadow)
@@ -350,10 +431,10 @@ void DiffuseObject::diffuseUnshadow(int size, int band2, Sampler* sampler, Trans
                 visibility = true;
             }
 
-            /*if (!visibility)
+            if (!visibility)
             {
                 H = 0.0f;
-            }*/
+            }
             //Projection.
             for (int k = 0; k < band2; k++)
             {
@@ -416,10 +497,11 @@ void DiffuseObject::diffuseUnshadow(int size, int band2, Sampler* sampler, Trans
         std::cout << "Unshadowed transfer vector generated." << std::endl;
 }
 
-void DiffuseObject::diffuseShadow(int size, int band2, Sampler* sampler, TransferType type, BVHTree* Inbvht)
+void DiffuseObject::diffuseShadow(int size, int band2, Sampler* sampler, TransferType type, 
+    std::vector<Object*> obj_list, int this_id, BVHTree* Inbvht)
 {
     std::cout << "shadow" << std::endl;
-    diffuseUnshadow(size, band2, sampler, type, Inbvht);
+    diffuseUnshadow(size, band2, sampler, type, obj_list, this_id, Inbvht);
     if (type == T_SHADOW)
         std::cout << "Shadowed transfer vector generated." << std::endl;
     //system("pause");
@@ -427,7 +509,7 @@ void DiffuseObject::diffuseShadow(int size, int band2, Sampler* sampler, Transfe
 
 void DiffuseObject::diffuseInterreflect(int size, int band2, Sampler* sampler, TransferType type, int bounce)
 {
-    BVHTree bvht;
+    /*BVHTree bvht;
     bvht.build(*this);
 
     diffuseShadow(size, band2, sampler, type, &bvht);
@@ -505,10 +587,11 @@ void DiffuseObject::diffuseInterreflect(int size, int band2, Sampler* sampler, T
     }
     _TransferFunc = interReflect[bounce];
     delete[] interReflect;
-    std::cout << "Interreflected transfer vector generated." << std::endl;
+    std::cout << "Interreflected transfer vector generated." << std::endl;*/
 }
 
-void DiffuseObject::project2SH(int mode, int band, int sampleNumber, int bounce)
+void DiffuseObject::project2SH(int mode, int band, int sampleNumber, int bounce,
+    std::vector<Object*>obj_list, int this_id)
 {
     _band = band;
 
@@ -522,12 +605,12 @@ void DiffuseObject::project2SH(int mode, int band, int sampleNumber, int bounce)
     if (mode == 1)
     {
         std::cout << "Transfer Type: unshadowed" << std::endl;
-        diffuseUnshadow(size, band2, &stemp, T_UNSHADOW);
+        diffuseUnshadow(size, band2, &stemp, T_UNSHADOW, obj_list, this_id);
     }
     else if (mode == 2)
     {
         std::cout << "Transfer Type: shadowed" << std::endl;
-        diffuseShadow(size, band2, &stemp, T_SHADOW);
+        diffuseShadow(size, band2, &stemp, T_SHADOW, obj_list, this_id);
     }
     else if (mode == 3)
     {

@@ -1,0 +1,2 @@
+0
+objects/scene_8/area_light.obj

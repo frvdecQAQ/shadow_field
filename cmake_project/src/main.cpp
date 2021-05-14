@@ -33,6 +33,8 @@
 #include "shorder.hpp"
 #define STB_IMAGE_WRITE_IMPLEMENTATION
 #include "stb_image_write.h"
+
+
 //#define FULL_SCREEN
 
 // Window size.
@@ -65,15 +67,15 @@ Renderer renderer;
 
 int sampleNumber = 128 * 128;
 int band = 5;
-int sphereNumber = 32;
+int sphereNumber = 64;
 int shadowSampleNumber = 128 * 128;
 
 // Cubemap & Simple Light.
 bool renderBar = true;
 
 // Camera.
-float camera_dis = 3.9f;
-glm::vec3 camera_pos(0.670470, 0.361696, 0.383737);
+float camera_dis = 1.1f;
+glm::vec3 camera_pos(-1.148544, 1.044044, -0.066812);
 glm::vec3 last_camera_pos(0.0f, 0.0f, 1.0f);
 glm::vec3 camera_dir(0.0f, 0.0f, 0.0f);
 glm::vec3 camera_up(0.0f, 1.0f, 0.0f);
@@ -310,6 +312,8 @@ int main(int argc, char** argv){
 
         //std::string save_path = "./"+std::to_string(render_cnt)+".png";
         //if(render_cnt < 40)saveImage(save_path.c_str(), window);
+        if(renderer.approx)std::cout << "1" << std::endl;
+        else std::cout << "0" << std::endl;
 
         std::cout << " ============================ " << std::endl;
 
@@ -364,6 +368,7 @@ void dataLoading(int argc, char** argv)
         tmp->init(obj_name, albedo);
         tmp_cnt++;
         tmp->readFDiskbin(save_path);
+        std::cout << "read done" << std::endl;
         scene.obj_list.push_back(tmp);
     }scene._band = band;
     scene.prepare();
@@ -379,6 +384,7 @@ void shaderLoading()
     std::cout << "Loading shaders ............. ";
     ResourceManager::LoadShader(_SHADER_PREFIX_"/cubemap.vert", _SHADER_PREFIX_"/cubemap.frag", "", "cubemap");
     ResourceManager::LoadShader(_SHADER_PREFIX_"/prt.vert", _SHADER_PREFIX_"/prt.frag", "", "prt");
+    ResourceManager::LoadShader(_SHADER_PREFIX_"/texture.vert", _SHADER_PREFIX_"/texture.frag", "", "texture");
     std::cout << "Done" << std::endl;
 }
 
@@ -472,13 +478,20 @@ void dataProcessing(int argc, char** argv)
             Object* tmp;
             if (scene.type_list[tmp_cnt] == 1)tmp = new GeneralObject();
             else tmp = new DiffuseObject();
-            tmp->init(obj_path.c_str(), albedo);
-            //std::cout << obj_path << std::endl;
-            //std::cout << tmp->_indices.size() << std::endl;
-            tmp->project2SH(transferType, band, sampleNumber, 1);
-            tmp->write2Diskbin(save_path);
+            tmp->init(obj_path.c_str(), albedo);;
+            scene.obj_list.push_back(tmp);
         }
         tmp_cnt++;
+    }
+    //need all
+    int obj_sum_sz = scene.obj_list.size();
+    for(int i = obj_sum_sz-1; i >= 0; --i){
+        std::string obj_path = file_name[i];
+        size_t beginIndex = obj_path.rfind('/');
+        size_t endIndex = obj_path.rfind('.');
+        std::string save_path = path + "/data/" + obj_path.substr(beginIndex + 1, endIndex - beginIndex - 1) + "U.dat";
+        scene.obj_list[i]->project2SH(transferType, band, sampleNumber, 1, scene.obj_list, i);
+        scene.obj_list[i]->write2Diskbin(save_path);
     }
     //fftprecomputed fs_pre;
     //fs_pre.init();
@@ -503,6 +516,8 @@ int key_callback(GLFWwindow* window, int key, int scancode, int action, int mode
         saveImage("./result.png", window);
     if (key == GLFW_KEY_H && action == GLFW_PRESS)
         renderBar = !renderBar;
+    if (key == GLFW_KEY_U && action == GLFW_PRESS)
+        renderer.approx = !renderer.approx;
 
     if (key >= 0 && key < 1024)
     {

@@ -6,6 +6,8 @@
 
 Object::~Object(){
     if(light_coef != nullptr)delete[] light_coef;
+    if(shadow_all != nullptr)delete[] shadow_all;
+    if(texture_uv != nullptr)delete[] texture_uv;
 }
 
 void Object::normVertices(glm::vec3 scale)
@@ -38,6 +40,19 @@ unsigned Object::index_from_str(const std::string& str) {
         }
     }
     return atoi(str.substr(0, pos).c_str());
+}
+
+unsigned Object::index_from_str_back(const std::string& str) {
+    int pos = (int)(str.length());
+    int len = pos;
+    for (int i = 0; i < len; ++i) {
+        if (str[i] == '/') {
+            pos = i;
+            break;
+        }
+    }
+    int p2 = str.rfind("/");
+    return atoi(str.substr(pos+1, p2-pos-1).c_str());
 }
 
 void Object::init(std::string path, glm::vec3 albedo, bool texture)
@@ -84,13 +99,6 @@ void Object::init(std::string path, glm::vec3 albedo, bool texture)
         {
             s_line >> x >> y >> z;
 
-            if (x > _vmaxX)_vmaxX = x;
-            if (x < _vminX)_vminX = x;
-            if (y > _vmaxY)_vmaxY = y;
-            if (y < _vminY)_vminY = y;
-            if (z > _vmaxZ)_vmaxZ = z;
-            if (z < _vminZ)_vminZ = z;
-
             _vertices.push_back(x);
             _vertices.push_back(y);
             _vertices.push_back(z);
@@ -118,9 +126,52 @@ void Object::init(std::string path, glm::vec3 albedo, bool texture)
             _indices.push_back(index_v0 - 1);
             _indices.push_back(index_v1 - 1);
             _indices.push_back(index_v2 - 1);
+
+            f_str.push_back(index_v0_str);
+            f_str.push_back(index_v1_str);
+            f_str.push_back(index_v2_str);
         }
     }
     in.close();
+    if(!_texcoords.empty()){
+        is_texture = true;
+        glGenTextures(1, &texture_map);
+        glBindTexture(GL_TEXTURE_2D, texture_map);  
+        glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_S, GL_REPEAT);   
+        glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_T, GL_REPEAT);
+        glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_LINEAR);
+        glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_LINEAR);
+        int end = path.rfind(".");
+        const std::string texture_path = path.substr(0, end)+".jpg";
+        cv::Mat texture_img = cv::imread(texture_path);
+        width = texture_img.rows;
+        height = texture_img.cols;
+        nrChannels = (int)(texture_img.channels());
+        GLubyte* pixels = new GLubyte[width*height*3];
+        memcpy(pixels, texture_img.data, width*height*3*sizeof(char));
+        if (pixels)
+        {
+            std::cout << "cp0" << std::endl;
+            glTexImage2D(GL_TEXTURE_2D, 0, GL_RGB, width, height, 0, GL_RGB, GL_UNSIGNED_BYTE, pixels);
+            //glGenerateMipmap(GL_TEXTURE_2D);
+        }
+        else
+        {
+            std::cout << "Failed to load texture" << std::endl;
+            exit(0);
+        }
+        free(pixels);
+        texture_uv = new float[_vertices.size()/3*2];
+        for(int i = 0; i < f_str.size(); ++i){
+            int v_num = index_from_str(f_str[i])-1;;
+            int t_num = index_from_str_back(f_str[i])-1;
+            texture_uv[v_num*2] = _texcoords[t_num*2];
+            texture_uv[v_num*2+1] = _texcoords[t_num*2+1];
+            std::cout << "t " << v_num << ' ' << t_num << std::endl;
+        }
+        std::cout << "texture done" << std::endl;
+    }
+    //std::cout << "???" << std::endl;
     //normVertices(scale);
 
     _cx = _cy = _cz = 0.0f;
